@@ -31,7 +31,7 @@ function getCurrentPeriod() {
 
 function getPeriodLabel(period) {
   const [yyyy, mm] = (period || getCurrentPeriod()).split('-');
-  return `Tháng ${parseInt(mm)}/${yyyy}`;
+  return `ThÃ¡ng ${parseInt(mm)}/${yyyy}`;
 }
 
 function getMachineId() {
@@ -217,7 +217,7 @@ const upload = multer({
     const extname = /\.(mp3|wav|ogg|m4a)$/i.test(file.originalname);
     const isAudio = file.mimetype.startsWith('audio/') || file.mimetype === 'application/octet-stream';
     if (extname && isAudio) return cb(null, true);
-    cb(new Error('Chỉ chấp nhận MP3, WAV, OGG, M4A!'));
+    cb(new Error('Chá»‰ cháº¥p nháº­n MP3, WAV, OGG, M4A!'));
   },
   limits: { fileSize: 20 * 1024 * 1024 }
 });
@@ -261,7 +261,7 @@ app.use((req, res, next) => {
     
     const licStatus = verifyClientLicense(clientDeviceId, clientLicenseKey);
     if (!licStatus.activated) {
-      return res.status(401).json({ error: 'Thiết bị chưa kích hoạt bản quyền!', reason: licStatus.reason });
+      return res.status(401).json({ error: 'Thiáº¿t bá»‹ chÆ°a kÃ­ch hoáº¡t báº£n quyá»n!', reason: licStatus.reason });
     }
   }
 
@@ -271,10 +271,42 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC_DIR));
 
-// TikTok state
-let tiktokConnection = null;
-let currentUsername = '';
-let connectionStatus = 'disconnected';
+// Multi-room system
+const rooms = new Map();
+const ROOM_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+function getOrCreateRoom(roomId) {
+  if (!rooms.has(roomId)) {
+    rooms.set(roomId, {
+      id: roomId,
+      tiktokConnection: null,
+      connectionStatus: 'disconnected',
+      tiktokUsername: roomId,
+      config: { ...defaultConfig, tiktokUsername: roomId },
+      clients: new Set(),
+      lastActivity: Date.now(),
+      cleanupTimer: null
+    });
+  }
+  const room = rooms.get(roomId);
+  room.lastActivity = Date.now();
+  if (room.cleanupTimer) {
+    clearTimeout(room.cleanupTimer);
+    room.cleanupTimer = null;
+  }
+  return room;
+}
+
+function cleanupRoom(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  if (room.clients.size > 0) return;
+  if (room.tiktokConnection) {
+    try { room.tiktokConnection.disconnect(); } catch(e) {}
+  }
+  rooms.delete(roomId);
+  console.log(`[Room] Cleaned up room: ${roomId}`);
+}
 
 // ===== API ENDPOINTS =====
 
@@ -286,7 +318,7 @@ app.get('/api/machine-id', (req, res) => {
 
 app.post('/api/activate', (req, res) => {
   const { key } = req.body;
-  if (!key) return res.status(400).json({ error: 'Vui lòng cung cấp mã kích hoạt!' });
+  if (!key) return res.status(400).json({ error: 'Vui lÃ²ng cung cáº¥p mÃ£ kÃ­ch hoáº¡t!' });
 
   const cfg = loadLicenseConfig();
   const machineId = getMachineId();
@@ -296,23 +328,23 @@ app.post('/api/activate', (req, res) => {
   if (cleanKey === expectedMonthly) {
     const licData = { licenseKey: expectedMonthly, type: 'monthly', period: getCurrentPeriod(), activatedAt: new Date().toISOString() };
     fs.writeFileSync(LICENSE_FILE, JSON.stringify(licData, null, 2), 'utf8');
-    return res.json({ success: true, type: 'monthly', message: 'Kích hoạt thành công!', periodLabel: getPeriodLabel(getCurrentPeriod()) });
+    return res.json({ success: true, type: 'monthly', message: 'KÃ­ch hoáº¡t thÃ nh cÃ´ng!', periodLabel: getPeriodLabel(getCurrentPeriod()) });
   }
 
   const expiryDateStr = detectTrialKey(machineId, cfg.salt, cleanKey);
   if (expiryDateStr) {
     const today = getTodayStr();
     if (today > expiryDateStr) {
-      return res.status(400).json({ error: 'Key dùng thử đã hết hạn vào ngày ' + expiryDateStr.split('-').reverse().join('/') + '!' });
+      return res.status(400).json({ error: 'Key dÃ¹ng thá»­ Ä‘Ã£ háº¿t háº¡n vÃ o ngÃ y ' + expiryDateStr.split('-').reverse().join('/') + '!' });
     }
     const daysLeft = Math.ceil((new Date(expiryDateStr) - new Date(today)) / 86400000) + 1;
     const licData = { licenseKey: cleanKey, type: 'trial', expiryDate: expiryDateStr, activatedAt: new Date().toISOString() };
     fs.writeFileSync(LICENSE_FILE, JSON.stringify(licData, null, 2), 'utf8');
     const [y, m, d] = expiryDateStr.split('-');
-    return res.json({ success: true, type: 'trial', message: 'Kích hoạt dùng thử thành công!', expiryDate: expiryDateStr, expiryLabel: `${d}/${m}/${y}`, daysLeft });
+    return res.json({ success: true, type: 'trial', message: 'KÃ­ch hoáº¡t dÃ¹ng thá»­ thÃ nh cÃ´ng!', expiryDate: expiryDateStr, expiryLabel: `${d}/${m}/${y}`, daysLeft });
   }
 
-  res.status(400).json({ error: 'Mã kích hoạt không chính xác hoặc đã hết hạn!' });
+  res.status(400).json({ error: 'MÃ£ kÃ­ch hoáº¡t khÃ´ng chÃ­nh xÃ¡c hoáº·c Ä‘Ã£ háº¿t háº¡n!' });
 });
 
 app.post('/api/admin/generate-key', (req, res) => {
@@ -320,11 +352,11 @@ app.post('/api/admin/generate-key', (req, res) => {
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
   
   if (password !== adminPassword) {
-    return res.status(401).json({ error: 'Mật khẩu admin không chính xác!' });
+    return res.status(401).json({ error: 'Máº­t kháº©u admin khÃ´ng chÃ­nh xÃ¡c!' });
   }
   
   if (!targetMachineId) {
-    return res.status(400).json({ error: 'Vui lòng cung cấp Machine ID người nhận!' });
+    return res.status(400).json({ error: 'Vui lÃ²ng cung cáº¥p Machine ID ngÆ°á»i nháº­n!' });
   }
 
   const cfg = loadLicenseConfig();
@@ -355,15 +387,23 @@ app.post('/api/verify-license', (req, res) => {
   res.json(status);
 });
 
-// Config
-app.get('/api/config', (req, res) => res.json(loadConfig()));
-app.post('/api/config', (req, res) => {
-  const config = { ...loadConfig(), ...req.body };
-  saveConfig(config);
-  res.json({ success: true, config });
+// Config (per room)
+app.get('/api/config', (req, res) => {
+  const roomId = req.query.room;
+  if (!roomId) return res.json(defaultConfig);
+  const room = getOrCreateRoom(roomId);
+  res.json(room.config);
 });
 
-// Songs
+app.post('/api/config', (req, res) => {
+  const roomId = req.query.room;
+  if (!roomId) return res.status(400).json({ error: 'Missing room' });
+  const room = getOrCreateRoom(roomId);
+  room.config = { ...room.config, ...req.body };
+  res.json({ success: true, config: room.config });
+});
+
+// Songs (shared across rooms)
 app.get('/api/songs', (req, res) => {
   try {
     const files = fs.readdirSync(MUSIC_DIR);
@@ -380,7 +420,7 @@ app.get('/api/songs', (req, res) => {
       });
     res.json(songs);
   } catch (e) {
-    res.status(500).json({ error: 'Không thể đọc thư mục nhạc' });
+    res.status(500).json({ error: 'KhÃ´ng thá»ƒ Ä‘á»c thÆ° má»¥c nháº¡c' });
   }
 });
 
@@ -398,13 +438,13 @@ app.post('/api/songs/upload', upload.array('songs'), (req, res) => {
     saveConfig(config);
     res.json({ success: true, files: uploadedFiles });
   } catch (e) {
-    res.status(400).json({ error: e.message || 'Lỗi khi tải file lên' });
+    res.status(400).json({ error: e.message || 'Lá»—i khi táº£i file lÃªn' });
   }
 });
 
 app.delete('/api/songs/:filename', (req, res) => {
   const filePath = path.join(MUSIC_DIR, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Không tìm thấy file nhạc' });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'KhÃ´ng tÃ¬m tháº¥y file nháº¡c' });
   try {
     fs.unlinkSync(filePath);
     const config = loadConfig();
@@ -412,78 +452,91 @@ app.delete('/api/songs/:filename', (req, res) => {
     saveConfig(config);
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: 'Lỗi khi xóa file nhạc' });
+    res.status(500).json({ error: 'Lá»—i khi xÃ³a file nháº¡c' });
   }
 });
 
-// TikTok Status
-app.get('/api/tiktok/status', (req, res) => res.json({ status: connectionStatus, username: currentUsername }));
+// TikTok Status (per room)
+app.get('/api/tiktok/status', (req, res) => {
+  const roomId = req.query.room;
+  if (!roomId) return res.json({ status: 'disconnected', username: '' });
+  const room = rooms.get(roomId);
+  if (!room) return res.json({ status: 'disconnected', username: '' });
+  res.json({ status: room.connectionStatus, username: room.tiktokUsername });
+});
 
-// Mock events
+// Mock events (per room)
 app.post('/api/tiktok/mock-gift', (req, res) => {
-  const { giftName, count, diamondCount, nickname, uniqueId } = req.body;
+  const { giftName, count, diamondCount, nickname, uniqueId, room: roomId } = req.body;
   const evt = {
-    giftName: giftName || 'Hoa hồng',
+    giftName: giftName || 'Hoa há»“ng',
     repeatCount: count || 1,
     diamondCount: diamondCount || 1,
-    nickname: nickname || 'Người xem bí ẩn',
+    nickname: nickname || 'NgÆ°á»i xem bÃ­ áº©n',
     uniqueId: uniqueId || 'test_user_' + Math.floor(Math.random() * 1000),
     giftId: Math.floor(Math.random() * 10000),
     isMock: true
   };
-  io.emit('gift', evt);
+  if (roomId) {
+    io.to(roomId).emit('gift', evt);
+  } else {
+    io.emit('gift', evt);
+  }
   res.json({ success: true, event: evt });
 });
 
 app.post('/api/tiktok/mock-chat', (req, res) => {
-  const { nickname, uniqueId, comment } = req.body;
+  const { nickname, uniqueId, comment, room: roomId } = req.body;
   const evt = {
-    nickname: nickname || 'Người xem bí ẩn',
+    nickname: nickname || 'NgÆ°á»i xem bÃ­ áº©n',
     uniqueId: uniqueId || 'test_user_' + Math.floor(Math.random() * 1000),
-    comment: comment || 'Chào cả nhà yêu âm nhạc nhé!',
+    comment: comment || 'ChÃ o cáº£ nhÃ  yÃªu Ã¢m nháº¡c nhÃ©!',
     isMock: true
   };
-  io.emit('chat', evt);
+  if (roomId) {
+    io.to(roomId).emit('chat', evt);
+  } else {
+    io.emit('chat', evt);
+  }
   res.json({ success: true, event: evt });
 });
 
-// TikTok Connect / Disconnect
+// TikTok Connect (per room)
 app.post('/api/tiktok/connect', (req, res) => {
   const { username } = req.body;
-  if (!username) return res.status(400).json({ error: 'Vui lòng cung cấp TikTok Username' });
-  if (tiktokConnection && connectionStatus === 'connected') {
-    return res.json({ success: true, message: 'Đã kết nối sẵn', status: connectionStatus });
+  if (!username) return res.status(400).json({ error: 'Vui lÃ²ng cung cáº¥p TikTok Username' });
+
+  const roomId = username;
+  const room = getOrCreateRoom(roomId);
+
+  if (room.tiktokConnection && room.connectionStatus === 'connected') {
+    return res.json({ success: true, message: 'ÄÃ£ káº¿t ná»‘i sáºµn', status: room.connectionStatus });
   }
 
-  currentUsername = username;
-  connectionStatus = 'connecting';
-  io.emit('tiktok-status', { status: connectionStatus, username: currentUsername });
+  room.connectionStatus = 'connecting';
+  io.to(roomId).emit('tiktok-status', { status: room.connectionStatus, username: roomId });
 
   try {
-    const config = loadConfig();
-    config.tiktokUsername = username;
-    saveConfig(config);
+    room.tiktokConnection = new TikTokLiveConnection(username, { enableExtendedGiftInfo: true });
 
-    tiktokConnection = new TikTokLiveConnection(username, { enableExtendedGiftInfo: true });
-
-    tiktokConnection.connect()
+    room.tiktokConnection.connect()
       .then(state => {
-        connectionStatus = 'connected';
-        io.emit('tiktok-status', { status: connectionStatus, username: currentUsername, roomId: state.roomId });
-        io.emit('sys-log', { type: 'success', text: `Kết nối thành công tới Live của @${username} (Room: ${state.roomId})` });
+        room.connectionStatus = 'connected';
+        io.to(roomId).emit('tiktok-status', { status: room.connectionStatus, username: roomId, roomId: state.roomId });
+        io.to(roomId).emit('sys-log', { type: 'success', text: `Káº¿t ná»‘i thÃ nh cÃ´ng tá»›i Live cá»§a @${username} (Room: ${state.roomId})` });
       })
       .catch(err => {
-        connectionStatus = 'disconnected';
-        io.emit('tiktok-status', { status: connectionStatus, username: currentUsername, error: err.message });
-        io.emit('sys-log', { type: 'error', text: `Không thể kết nối tới @${username}: ${err.message}` });
-        tiktokConnection = null;
+        room.connectionStatus = 'disconnected';
+        io.to(roomId).emit('tiktok-status', { status: room.connectionStatus, username: roomId, error: err.message });
+        io.to(roomId).emit('sys-log', { type: 'error', text: `KhÃ´ng thá»ƒ káº¿t ná»‘i tá»›i @${username}: ${err.message}` });
+        room.tiktokConnection = null;
       });
 
-    tiktokConnection.on(WebcastEvent.GIFT, data => {
+    // GIFT event
+    room.tiktokConnection.on(WebcastEvent.GIFT, data => {
       const uniqueId = data.user ? data.user.uniqueId : (data.uniqueId || 'user');
-      const nickname = data.user ? data.user.nickname : (data.nickname || 'Người xem');
-      const profilePictureUrl = (data.user && data.user.avatarThumb && data.user.avatarThumb.mUrls)
-        ? data.user.avatarThumb.mUrls[0] : (data.profilePictureUrl || null);
+      const nickname = data.user ? data.user.nickname : (data.nickname || 'NgÆ°á»i xem');
+      const profilePictureUrl = (data.user && data.user.avatarThumb && data.user.avatarThumb.mUrls) ? data.user.avatarThumb.mUrls[0] : (data.profilePictureUrl || null);
       const giftName = data.giftDetails ? data.giftDetails.giftName : (data.giftName || 'Gift_' + data.giftId);
       const diamondCount = data.giftDetails ? data.giftDetails.diamondCount : (data.diamondCount || 0);
       const repeatCount = data.repeatCount || 1;
@@ -491,46 +544,65 @@ app.post('/api/tiktok/connect', (req, res) => {
       const isStreak = giftType === 1;
       const isStreakEnd = data.repeatEnd === 1 || data.repeatEnd === true || data.repeatEnd === 'true';
       if (!isStreak || isStreakEnd) {
-        io.emit('gift', { giftName, repeatCount, diamondCount, nickname, uniqueId, giftId: data.giftId, profilePictureUrl });
+        io.to(roomId).emit('gift', { giftName, repeatCount, diamondCount, nickname, uniqueId, giftId: data.giftId, profilePictureUrl });
       }
     });
 
-    tiktokConnection.on(WebcastEvent.CHAT, data => {
+    // CHAT event
+    room.tiktokConnection.on(WebcastEvent.CHAT, data => {
       const uniqueId = data.user ? data.user.uniqueId : (data.uniqueId || 'user');
-      const nickname = data.user ? data.user.nickname : (data.nickname || 'Người xem');
-      const profilePictureUrl = (data.user && data.user.avatarThumb && data.user.avatarThumb.mUrls)
-        ? data.user.avatarThumb.mUrls[0] : null;
-      io.emit('chat', { nickname, uniqueId, comment: data.comment, profilePictureUrl });
+      const nickname = data.user ? data.user.nickname : (data.nickname || 'NgÆ°á»i xem');
+      const profilePictureUrl = (data.user && data.user.avatarThumb && data.user.avatarThumb.mUrls) ? data.user.avatarThumb.mUrls[0] : null;
+      io.to(roomId).emit('chat', { nickname, uniqueId, comment: data.comment, profilePictureUrl });
     });
 
-    tiktokConnection.on(WebcastEvent.ROOM_USER, data => {
-      io.emit('viewer-count', { viewerCount: data.viewerCount });
+    // Viewer count
+    room.tiktokConnection.on(WebcastEvent.ROOM_USER, data => {
+      io.to(roomId).emit('viewer-count', { viewerCount: data.viewerCount });
     });
 
-    tiktokConnection.on(WebcastEvent.DISCONNECT, () => {
-      connectionStatus = 'disconnected';
-      io.emit('tiktok-status', { status: connectionStatus, username: currentUsername });
-      io.emit('sys-log', { type: 'warning', text: `Đã mất kết nối tới Live của @${username}` });
-      tiktokConnection = null;
+    // Disconnect
+    room.tiktokConnection.on(WebcastEvent.DISCONNECT, () => {
+      room.connectionStatus = 'disconnected';
+      io.to(roomId).emit('tiktok-status', { status: room.connectionStatus, username: roomId });
+      io.to(roomId).emit('sys-log', { type: 'warning', text: `ÄÃ£ máº¥t káº¿t ná»‘i tá»›i Live cá»§a @${username}` });
+      room.tiktokConnection = null;
     });
 
-    res.json({ success: true, message: 'Đang kết nối...', status: connectionStatus });
+    res.json({ success: true, message: 'Äang káº¿t ná»‘i...', status: room.connectionStatus });
   } catch (err) {
-    connectionStatus = 'disconnected';
-    tiktokConnection = null;
+    room.connectionStatus = 'disconnected';
+    room.tiktokConnection = null;
     res.status(500).json({ error: err.message });
   }
 });
 
+// TikTok Disconnect (per room)
 app.post('/api/tiktok/disconnect', (req, res) => {
-  if (tiktokConnection) {
-    try { tiktokConnection.disconnect(); } catch (e) {}
-    tiktokConnection = null;
+  const roomId = req.body.room || req.query.room;
+  if (!roomId) return res.status(400).json({ error: 'Missing room' });
+  const room = rooms.get(roomId);
+  if (room && room.tiktokConnection) {
+    try { room.tiktokConnection.disconnect(); } catch(e) {}
+    room.tiktokConnection = null;
+    room.connectionStatus = 'disconnected';
+    io.to(roomId).emit('tiktok-status', { status: room.connectionStatus, username: roomId });
+    io.to(roomId).emit('sys-log', { type: 'info', text: 'ÄÃ£ chá»§ Ä‘á»™ng ngáº¯t káº¿t ná»‘i Live' });
   }
-  connectionStatus = 'disconnected';
-  io.emit('tiktok-status', { status: connectionStatus, username: currentUsername });
-  io.emit('sys-log', { type: 'info', text: 'Đã chủ động ngắt kết nối Live' });
   res.json({ success: true });
+});
+
+// Active rooms list
+app.get('/api/rooms', (req, res) => {
+  const roomList = [];
+  rooms.forEach((room, id) => {
+    roomList.push({
+      id,
+      status: room.connectionStatus,
+      clients: room.clients.size
+    });
+  });
+  res.json(roomList);
 });
 
 // Network info for OBS URL display
@@ -539,24 +611,59 @@ app.get('/api/network-info', (req, res) => {
   res.json({ lanIp, port: PORT, overlayUrl: `http://${lanIp}:${PORT}/overlay.html` });
 });
 
-// Socket.IO
+// Socket.IO (room-based)
 io.on('connection', (socket) => {
-  socket.emit('tiktok-status', { status: connectionStatus, username: currentUsername });
+  socket.on('join-room', (roomId) => {
+    if (!roomId) return;
+    // Leave previous room if any
+    if (socket.currentRoom) {
+      socket.leave(socket.currentRoom);
+      const prevRoom = rooms.get(socket.currentRoom);
+      if (prevRoom) {
+        prevRoom.clients.delete(socket.id);
+        if (prevRoom.clients.size === 0) {
+          prevRoom.cleanupTimer = setTimeout(() => cleanupRoom(socket.currentRoom), ROOM_TIMEOUT);
+        }
+      }
+    }
+    socket.currentRoom = roomId;
+    socket.join(roomId);
+    const room = getOrCreateRoom(roomId);
+    room.clients.add(socket.id);
+    socket.emit('tiktok-status', { status: room.connectionStatus, username: room.tiktokUsername });
+    console.log(`[Room] ${socket.id} joined room: ${roomId} (${room.clients.size} clients)`);
+  });
+
   socket.on('play-state', (data) => {
-    socket.broadcast.emit('play-state', data);
+    if (socket.currentRoom) {
+      socket.to(socket.currentRoom).emit('play-state', data);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.currentRoom) {
+      const room = rooms.get(socket.currentRoom);
+      if (room) {
+        room.clients.delete(socket.id);
+        console.log(`[Room] ${socket.id} left room: ${socket.currentRoom} (${room.clients.size} clients)`);
+        if (room.clients.size === 0) {
+          room.cleanupTimer = setTimeout(() => cleanupRoom(socket.currentRoom), ROOM_TIMEOUT);
+        }
+      }
+    }
   });
 });
 
 // Start server
 const LAN_IP = getLanIp();
 server.listen(PORT, '0.0.0.0', () => {
-  console.log('\n╔════════════════════════════════════════════════╗');
-  console.log('║   🎵 TikTok Live Auto Music — Android Edition  ║');
-  console.log('╠════════════════════════════════════════════════╣');
-  console.log(`║  📱 Mở trên điện thoại: http://localhost:${PORT}   ║`);
-  console.log(`║  💻 Mở từ máy khác:    http://${LAN_IP}:${PORT}  ║`);
-  console.log(`║  📺 OBS Overlay URL:   http://${LAN_IP}:${PORT}/overlay.html  ║`);
-  console.log(`║  📁 Thư mục nhạc: ${MUSIC_DIR}  ║`);
-  console.log('╚════════════════════════════════════════════════╝\n');
-  console.log('  ✅ Server sẵn sàng. Mở Chrome Android và truy cập URL trên!\n');
+  console.log('\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—');
+  console.log('â•‘   ðŸŽµ TikTok Live Auto Music â€” Android Edition  â•‘');
+  console.log('â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£');
+  console.log(`â•‘  ðŸ“± Má»Ÿ trÃªn Ä‘iá»‡n thoáº¡i: http://localhost:${PORT}   â•‘`);
+  console.log(`â•‘  ðŸ’» Má»Ÿ tá»« mÃ¡y khÃ¡c:    http://${LAN_IP}:${PORT}  â•‘`);
+  console.log(`â•‘  ðŸ“º OBS Overlay URL:   http://${LAN_IP}:${PORT}/overlay.html  â•‘`);
+  console.log(`â•‘  ðŸ“ ThÆ° má»¥c nháº¡c: ${MUSIC_DIR}  â•‘`);
+  console.log('â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n');
+  console.log('  âœ… Server sáºµn sÃ ng. Má»Ÿ Chrome Android vÃ  truy cáº­p URL trÃªn!\n');
 });

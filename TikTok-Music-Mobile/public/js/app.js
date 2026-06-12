@@ -1,5 +1,5 @@
 // ============================================================
-// TikTok Live Auto Music — Android (Mobile SPA) — Main App JS
+// TikTok Live Auto Music â€” Android (Mobile SPA) â€” Main App JS
 // ============================================================
 
 // === CLIENT DEVICE LICENSE SYSTEM ===
@@ -217,7 +217,7 @@ async function loadSongsList() {
     const res = await fetch('/api/songs');
     library = await res.json();
 
-    songCountBadge.textContent = `${library.length} bài`;
+    songCountBadge.textContent = `${library.length} bÃ i`;
 
     // Reconstruct playlist from config
     activePlaylist = [];
@@ -235,7 +235,7 @@ async function loadSongsList() {
     renderMappingList();
   } catch (e) {
     console.error('Error loading songs:', e);
-    addLog('system', 'error', 'Không thể tải danh sách nhạc');
+    addLog('system', 'error', 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch nháº¡c');
   }
 }
 
@@ -259,9 +259,15 @@ function initSocket() {
 
   socket.on('chat', (data) => {
     addLog('chat', 'info', data);
-    if (systemConfig.chatTtsEnabled) {
-      const author = data.nickname || data.uniqueId;
-      speakText(`${author} bình luận: ${data.comment}`);
+    if (systemConfig.chatTtsEnabled && data.comment) {
+      // Skip emoji-only comments, auto-detect language
+      const comment = data.comment.trim();
+      if (comment) {
+        // Strip emojis from author name
+        const rawName = data.nickname || data.uniqueId;
+        const author = rawName.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji_Modifier_Base}\p{Emoji_Modifier}\p{Emoji_Component}\u200d\ufe0f\u20e3\u2600-\u27bf\u2300-\u23ff\u2b50\u2b55]/gu, '').trim() || rawName;
+        speakText(`${author}: ${comment}`);
+      }
     }
   });
 
@@ -272,7 +278,7 @@ function initSocket() {
     const totalCoins = data.diamondCount * data.repeatCount;
 
     if (totalCoins < minCoins) {
-      addLog('system', 'info', `Bỏ qua quà từ @${data.uniqueId} (${totalCoins} xu < ${minCoins} xu tối thiểu)`);
+      addLog('system', 'info', `Bá» qua quÃ  tá»« @${data.uniqueId} (${totalCoins} xu < ${minCoins} xu tá»‘i thiá»ƒu)`);
       return;
     }
 
@@ -303,7 +309,7 @@ function queueNextSong(giftData) {
     const song = library.find(s => s.filename === matchedFilename);
     if (song) {
       songToQueue = { ...song };
-      addLog('system', 'info', `Quà "${giftNameClean}" → bài: ${song.name}`);
+      addLog('system', 'info', `QuÃ  "${giftNameClean}" â†’ bÃ i: ${song.name}`);
     }
   }
 
@@ -314,7 +320,7 @@ function queueNextSong(giftData) {
       songToQueue = { ...activePlaylist[nextPlaylistIndex] };
       nextPlaylistIndex++;
     } else {
-      addLog('system', 'warning', `Nhận quà "${giftNameClean}" nhưng playlist trống!`);
+      addLog('system', 'warning', `Nháº­n quÃ  "${giftNameClean}" nhÆ°ng playlist trá»‘ng!`);
       return;
     }
   }
@@ -326,7 +332,7 @@ function queueNextSong(giftData) {
   renderQueueList();
   queueCountBadge.textContent = playbackQueue.length;
 
-  addLog('system', 'success', `Đã thêm: ${songToQueue.name} (bởi @${giftData.uniqueId})`);
+  addLog('system', 'success', `ÄÃ£ thÃªm: ${songToQueue.name} (bá»Ÿi @${giftData.uniqueId})`);
 }
 
 let isProcessingQueue = false;
@@ -349,7 +355,7 @@ async function tickQueue() {
 async function playSongItem(song) {
   currentSong = song;
   currentSongTitle.textContent = song.name;
-  playerStatusText.textContent = 'Đang chuẩn bị...';
+  playerStatusText.textContent = 'Äang chuáº©n bá»‹...';
 
   // Notify overlay
   if (socket) {
@@ -364,7 +370,7 @@ async function playSongItem(song) {
     });
   }
 
-  playerStatusText.textContent = 'Đang phát nhạc';
+  playerStatusText.textContent = 'Äang phÃ¡t nháº¡c';
   isPlaying = true;
   vinylDisk.classList.add('playing');
   playIcon.className = 'fa-solid fa-pause';
@@ -384,7 +390,7 @@ async function playSongItem(song) {
     try {
       await audioPlayer.play();
     } catch (err) {
-      addLog('system', 'error', `Không thể phát: ${song.name}. Bỏ qua.`);
+      addLog('system', 'error', `KhÃ´ng thá»ƒ phÃ¡t: ${song.name}. Bá» qua.`);
       handlePlaybackFinished();
     }
   }
@@ -395,8 +401,8 @@ function handlePlaybackFinished() {
   currentSong = null;
   vinylDisk.classList.remove('playing');
   playIcon.className = 'fa-solid fa-play';
-  currentSongTitle.textContent = 'Chưa phát nhạc';
-  playerStatusText.textContent = 'Đang dừng';
+  currentSongTitle.textContent = 'ChÆ°a phÃ¡t nháº¡c';
+  playerStatusText.textContent = 'Äang dá»«ng';
   progressBar.style.width = '0%';
   currentTimeText.textContent = '0:00';
   totalTimeText.textContent = '0:00';
@@ -419,13 +425,74 @@ audioPlayer.addEventListener('timeupdate', () => {
 audioPlayer.addEventListener('ended', () => handlePlaybackFinished());
 
 // ========================================
-// TTS
+// TTS â€” Auto Language Detection + Emoji Filter
 // ========================================
-function speakText(text) {
+
+// Only keep readable text: letters, numbers, punctuation, spaces (any language)
+function keepTextOnly(text) {
+  return text.replace(/[^\p{Letter}\p{Number}\p{Punctuation}\s]/gu, '').replace(/\s+/g, ' ').trim();
+}
+
+// Check if comment has no readable text (only emojis/icons/symbols)
+function isEmojiOnly(text) {
+  return keepTextOnly(text).length === 0;
+}
+
+// Detect language from text content
+function detectLanguage(text) {
+  const clean = keepTextOnly(text);
+  
+  // Vietnamese: has tone marks
+  if (/[Ã Ã¡áº¡áº£Ã£Ã¢áº§áº¥áº­áº©áº«Äƒáº±áº¯áº·áº³áºµÃ¨Ã©áº¹áº»áº½Ãªá»áº¿á»‡á»ƒá»…Ã¬Ã­á»‹á»‰Ä©Ã²Ã³á»á»ÃµÃ´á»“á»‘á»™á»•á»—Æ¡á»á»›á»£á»Ÿá»¡Ã¹Ãºá»¥á»§Å©Æ°á»«á»©á»±á»­á»¯á»³Ã½á»µá»·á»¹Ä‘]/i.test(clean)) {
+    return 'vi-VN';
+  }
+  // Chinese characters
+  if (/[\u4e00-\u9fff\u3400-\u4dbf]/.test(clean)) {
+    return 'zh-CN';
+  }
+  // Japanese: Hiragana or Katakana
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(clean)) {
+    return 'ja-JP';
+  }
+  // Korean: Hangul
+  if (/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(clean)) {
+    return 'ko-KR';
+  }
+  // Thai
+  if (/[\u0e00-\u0e7f]/.test(clean)) {
+    return 'th-TH';
+  }
+  // Arabic
+  if (/[\u0600-\u06ff]/.test(clean)) {
+    return 'ar-SA';
+  }
+  // Russian/Cyrillic
+  if (/[\u0400-\u04ff]/.test(clean)) {
+    return 'ru-RU';
+  }
+  // Hindi/Devanagari
+  if (/[\u0900-\u097f]/.test(clean)) {
+    return 'hi-IN';
+  }
+  // Default: English for Latin characters
+  if (/[a-zA-Z]/.test(clean)) {
+    return 'en-US';
+  }
+  // Fallback
+  return 'vi-VN';
+}
+
+function speakText(text, forceLang) {
   if (!('speechSynthesis' in window)) return;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'vi-VN';
+  
+  // Strip ALL non-text characters (emojis, icons, symbols, stickers)
+  const cleanText = keepTextOnly(text);
+  if (!cleanText) return;
+  
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.lang = forceLang || detectLanguage(cleanText);
   utterance.rate = systemConfig.ttsRate || 1.0;
+  utterance.pitch = systemConfig.ttsPitch || 1.0;
   utterance.onerror = () => {};
   window.speechSynthesis.speak(utterance);
 }
@@ -440,17 +507,17 @@ function updateConnectionStatus(status, username) {
 
   if (status === 'connected') {
     statusText.textContent = `@${username}`;
-    connectBtn.innerHTML = '<i class="fa-solid fa-plug-circle-xmark"></i> Ngắt Kết Nối';
+    connectBtn.innerHTML = '<i class="fa-solid fa-plug-circle-xmark"></i> Ngáº¯t Káº¿t Ná»‘i';
     connectBtn.className = 'btn btn-danger btn-full';
     viewerBadge.style.display = 'inline-flex';
   } else if (status === 'connecting') {
-    statusText.textContent = 'Đang kết nối...';
-    connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối';
+    statusText.textContent = 'Äang káº¿t ná»‘i...';
+    connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Äang káº¿t ná»‘i';
     connectBtn.className = 'btn btn-secondary btn-full';
     viewerBadge.style.display = 'none';
   } else {
-    statusText.textContent = 'Chưa kết nối';
-    connectBtn.innerHTML = '<i class="fa-solid fa-plug"></i> Kết Nối Live';
+    statusText.textContent = 'ChÆ°a káº¿t ná»‘i';
+    connectBtn.innerHTML = '<i class="fa-solid fa-plug"></i> Káº¿t Ná»‘i Live';
     connectBtn.className = 'btn btn-primary btn-full';
     viewerBadge.style.display = 'none';
   }
@@ -464,7 +531,7 @@ function setupEventListeners() {
   connectBtn.addEventListener('click', async () => {
     const username = tiktokUsernameInput.value.trim().replace(/^@/, '');
     if (!username) {
-      addLog('system', 'warning', 'Vui lòng nhập TikTok username!');
+      addLog('system', 'warning', 'Vui lÃ²ng nháº­p TikTok username!');
       return;
     }
     const isConnected = connectBtn.classList.contains('btn-danger');
@@ -478,7 +545,7 @@ function setupEventListeners() {
       const data = await res.json();
       if (data.error) addLog('system', 'error', data.error);
     } catch (e) {
-      addLog('system', 'error', 'Không thể liên lạc với server!');
+      addLog('system', 'error', 'KhÃ´ng thá»ƒ liÃªn láº¡c vá»›i server!');
     }
   });
 
@@ -493,7 +560,7 @@ function setupEventListeners() {
         isPlaying = false;
         vinylDisk.classList.remove('playing');
         playIcon.className = 'fa-solid fa-play';
-        playerStatusText.textContent = 'Tạm dừng';
+        playerStatusText.textContent = 'Táº¡m dá»«ng';
       }
     } else {
       if (currentSong && !currentSong.isSynth) {
@@ -501,7 +568,7 @@ function setupEventListeners() {
         isPlaying = true;
         vinylDisk.classList.add('playing');
         playIcon.className = 'fa-solid fa-pause';
-        playerStatusText.textContent = 'Đang phát nhạc';
+        playerStatusText.textContent = 'Äang phÃ¡t nháº¡c';
       }
     }
   });
@@ -511,7 +578,7 @@ function setupEventListeners() {
     if (currentSong) {
       if (currentSong.isSynth) synthEngine.stop();
       else audioPlayer.pause();
-      addLog('system', 'info', `Đã bỏ qua: ${currentSong.name}`);
+      addLog('system', 'info', `ÄÃ£ bá» qua: ${currentSong.name}`);
       handlePlaybackFinished();
     }
   });
@@ -521,7 +588,7 @@ function setupEventListeners() {
     playbackQueue = [];
     renderQueueList();
     queueCountBadge.textContent = 0;
-    addLog('system', 'info', 'Đã xóa hàng đợi');
+    addLog('system', 'info', 'ÄÃ£ xÃ³a hÃ ng Ä‘á»£i');
   });
 
   // Volume
@@ -574,12 +641,12 @@ function setupEventListeners() {
   copyUrlBtn.addEventListener('click', () => {
     const url = obsOverlayUrlInput.value;
     navigator.clipboard.writeText(url).then(() => {
-      copyUrlBtn.textContent = '✓';
+      copyUrlBtn.textContent = 'âœ“';
       setTimeout(() => { copyUrlBtn.textContent = 'Copy'; }, 2000);
     }).catch(() => {
       obsOverlayUrlInput.select();
       document.execCommand('copy');
-      copyUrlBtn.textContent = '✓';
+      copyUrlBtn.textContent = 'âœ“';
       setTimeout(() => { copyUrlBtn.textContent = 'Copy'; }, 2000);
     });
   });
@@ -590,7 +657,7 @@ function setupEventListeners() {
       const giftName = mappingGiftName.value.trim();
       const songFilename = mappingSongSelect.value;
       if (!giftName || !songFilename) {
-        addLog('system', 'warning', 'Điền đầy đủ tên quà và chọn bài hát!');
+        addLog('system', 'warning', 'Äiá»n Ä‘áº§y Ä‘á»§ tÃªn quÃ  vÃ  chá»n bÃ i hÃ¡t!');
         return;
       }
       systemConfig.giftMappings = systemConfig.giftMappings || {};
@@ -599,7 +666,7 @@ function setupEventListeners() {
       renderMappingList();
       mappingGiftName.value = '';
       mappingSongSelect.value = '';
-      addLog('system', 'success', `Đã liên kết quà "${giftName}" thành công!`);
+      addLog('system', 'success', `ÄÃ£ liÃªn káº¿t quÃ  "${giftName}" thÃ nh cÃ´ng!`);
     });
   }
 }
@@ -615,19 +682,19 @@ async function handleFileUpload(files) {
     formData.append('songs', files[i]);
   }
 
-  addLog('system', 'info', `Đang upload ${files.length} file...`);
+  addLog('system', 'info', `Äang upload ${files.length} file...`);
 
   try {
     const res = await fetch('/api/songs/upload', { method: 'POST', body: formData });
     const data = await res.json();
     if (data.success) {
-      addLog('system', 'success', `Đã tải lên ${data.files.length} bài hát mới`);
+      addLog('system', 'success', `ÄÃ£ táº£i lÃªn ${data.files.length} bÃ i hÃ¡t má»›i`);
       await loadSongsList();
     } else {
-      addLog('system', 'error', `Upload thất bại: ${data.error}`);
+      addLog('system', 'error', `Upload tháº¥t báº¡i: ${data.error}`);
     }
   } catch (e) {
-    addLog('system', 'error', 'Lỗi kết nối khi upload');
+    addLog('system', 'error', 'Lá»—i káº¿t ná»‘i khi upload');
   }
 
   // Reset file input
@@ -638,16 +705,16 @@ async function handleFileUpload(files) {
 // DELETE SONG
 // ========================================
 window.deleteSong = async (filename) => {
-  if (!confirm('Xóa bài hát này?')) return;
+  if (!confirm('XÃ³a bÃ i hÃ¡t nÃ y?')) return;
   try {
     const res = await fetch(`/api/songs/${encodeURIComponent(filename)}`, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
-      addLog('system', 'info', 'Đã xóa bài hát');
+      addLog('system', 'info', 'ÄÃ£ xÃ³a bÃ i hÃ¡t');
       await loadSongsList();
     }
   } catch (e) {
-    addLog('system', 'error', 'Không thể xóa bài hát');
+    addLog('system', 'error', 'KhÃ´ng thá»ƒ xÃ³a bÃ i hÃ¡t');
   }
 };
 
@@ -686,7 +753,7 @@ function togglePreview(filename) {
 
 function renderLibraryList() {
   if (library.length === 0) {
-    libraryList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Chưa có bài hát nào. Upload nhạc ở trên!</p></div>';
+    libraryList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>ChÆ°a cÃ³ bÃ i hÃ¡t nÃ o. Upload nháº¡c á»Ÿ trÃªn!</p></div>';
     return;
   }
   libraryList.innerHTML = '';
@@ -697,7 +764,7 @@ function renderLibraryList() {
     card.className = 'song-card' + (isPreviewing ? ' previewing' : '');
     card.innerHTML = `
       <div class="song-details">
-        <button class="btn-preview ${isPreviewing ? 'playing' : ''}" onclick="event.stopPropagation(); togglePreview('${song.filename}')" title="Nghe thử">
+        <button class="btn-preview ${isPreviewing ? 'playing' : ''}" onclick="event.stopPropagation(); togglePreview('${song.filename}')" title="Nghe thá»­">
           <i class="fa-solid ${isPreviewing ? 'fa-pause' : 'fa-play'}"></i>
         </button>
         <div class="song-meta">
@@ -720,7 +787,7 @@ function renderLibraryList() {
 
 function renderPlaylistList() {
   if (activePlaylist.length === 0) {
-    playlistList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-list-check"></i><p>Bấm nút \'+\' bên dưới để thêm nhạc.</p></div>';
+    playlistList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-list-check"></i><p>Báº¥m nÃºt \'+\' bÃªn dÆ°á»›i Ä‘á»ƒ thÃªm nháº¡c.</p></div>';
     return;
   }
   playlistList.innerHTML = '';
@@ -753,7 +820,7 @@ function renderPlaylistList() {
 
 function renderQueueList() {
   if (playbackQueue.length === 0) {
-    queueList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-hourglass"></i><p>Hàng đợi trống. Nhạc sẽ tự thêm khi nhận quà!</p></div>';
+    queueList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-hourglass"></i><p>HÃ ng Ä‘á»£i trá»‘ng. Nháº¡c sáº½ tá»± thÃªm khi nháº­n quÃ !</p></div>';
     return;
   }
   queueList.innerHTML = '';
@@ -767,7 +834,7 @@ function renderQueueList() {
         <div class="song-meta">
           <div class="song-title-text">${song.name}</div>
           <div class="song-size-text" style="color: var(--secondary-color)">
-            🎁 @${song.giftInfo.uniqueId} tặng ${song.giftInfo.repeatCount}x ${song.giftInfo.giftName}
+            ðŸŽ @${song.giftInfo.uniqueId} táº·ng ${song.giftInfo.repeatCount}x ${song.giftInfo.giftName}
           </div>
         </div>
       </div>
@@ -786,7 +853,7 @@ function renderMappingList() {
   const keys = Object.keys(mappings);
 
   if (keys.length === 0) {
-    mappingList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-link-slash"></i><p>Chưa có liên kết nào. Nhạc sẽ phát tuần tự theo Playlist.</p></div>';
+    mappingList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-link-slash"></i><p>ChÆ°a cÃ³ liÃªn káº¿t nÃ o. Nháº¡c sáº½ phÃ¡t tuáº§n tá»± theo Playlist.</p></div>';
     return;
   }
 
@@ -795,10 +862,10 @@ function renderMappingList() {
     const songFilename = mappings[giftName];
     let songName = '';
     if (songFilename === 'SYNTH_FALLBACK') {
-      songName = 'Nhạc Synthesizer';
+      songName = 'Nháº¡c Synthesizer';
     } else {
       const song = library.find(s => s.filename === songFilename);
-      songName = song ? song.name : 'Bài hát đã bị xóa';
+      songName = song ? song.name : 'BÃ i hÃ¡t Ä‘Ã£ bá»‹ xÃ³a';
     }
 
     const card = document.createElement('div');
@@ -808,7 +875,7 @@ function renderMappingList() {
         <i class="fa-solid fa-gift song-icon" style="color: var(--primary-color);"></i>
         <div class="song-meta">
           <div class="song-title-text">${giftName}</div>
-          <div class="song-size-text" style="color: var(--secondary-color);">➔ ${songName}</div>
+          <div class="song-size-text" style="color: var(--secondary-color);">âž” ${songName}</div>
         </div>
       </div>
       <div class="song-actions">
@@ -823,7 +890,7 @@ function renderMappingList() {
 
 function updateMappingSongSelectOptions() {
   if (!mappingSongSelect) return;
-  mappingSongSelect.innerHTML = '<option value="">-- Chọn bài hát --</option><option value="SYNTH_FALLBACK">Nhạc Synthesizer</option>';
+  mappingSongSelect.innerHTML = '<option value="">-- Chá»n bÃ i hÃ¡t --</option><option value="SYNTH_FALLBACK">Nháº¡c Synthesizer</option>';
   library.forEach(song => {
     const opt = document.createElement('option');
     opt.value = song.filename;
@@ -880,7 +947,7 @@ window.deleteMapping = async (giftName) => {
     delete systemConfig.giftMappings[giftName];
     await saveConfig();
     renderMappingList();
-    addLog('system', 'info', `Đã xóa liên kết quà "${giftName}"`);
+    addLog('system', 'info', `ÄÃ£ xÃ³a liÃªn káº¿t quÃ  "${giftName}"`);
   }
 };
 
@@ -899,13 +966,13 @@ function addLog(type, status, data) {
     logDiv.className = 'chat-message';
     logDiv.innerHTML = `<span class="log-time">${timeStr}</span> <span class="username">${data.nickname}:</span> <span class="comment">${escapeHtml(data.comment)}</span>`;
   } else if (type === 'gift') {
-    let giftIcon = '🎁';
+    let giftIcon = 'ðŸŽ';
     const nameLower = data.giftName.toLowerCase();
-    if (nameLower.includes('rose') || nameLower.includes('hoa hồng')) giftIcon = '🌹';
-    else if (nameLower.includes('heart') || nameLower.includes('tim')) giftIcon = '💖';
-    else if (nameLower.includes('crown') || nameLower.includes('mũ')) giftIcon = '👑';
-    else if (nameLower.includes('perfume') || nameLower.includes('nước hoa')) giftIcon = '🧪';
-    else if (nameLower.includes('galaxy') || nameLower.includes('vũ trụ')) giftIcon = '🪐';
+    if (nameLower.includes('rose') || nameLower.includes('hoa há»“ng')) giftIcon = 'ðŸŒ¹';
+    else if (nameLower.includes('heart') || nameLower.includes('tim')) giftIcon = 'ðŸ’–';
+    else if (nameLower.includes('crown') || nameLower.includes('mÅ©')) giftIcon = 'ðŸ‘‘';
+    else if (nameLower.includes('perfume') || nameLower.includes('nÆ°á»›c hoa')) giftIcon = 'ðŸ§ª';
+    else if (nameLower.includes('galaxy') || nameLower.includes('vÅ© trá»¥')) giftIcon = 'ðŸª';
 
     const totalCoins = data.diamondCount * data.repeatCount;
     logDiv.className = 'gift-message';
@@ -914,7 +981,7 @@ function addLog(type, status, data) {
         <span class="gift-icon-badge">${giftIcon}</span>
         <div>
           <span class="username">${data.nickname}</span>
-          <span class="gift-details">tặng ${data.repeatCount}x ${data.giftName}</span>
+          <span class="gift-details">táº·ng ${data.repeatCount}x ${data.giftName}</span>
         </div>
       </div>
       <span class="diamond-count">${totalCoins} xu</span>
@@ -942,7 +1009,7 @@ window.triggerMockGift = async (giftName, count, diamondCount) => {
         giftName,
         count,
         diamondCount,
-        nickname: `Người xem ${userSeed}`,
+        nickname: `NgÆ°á»i xem ${userSeed}`,
         uniqueId: `viewer_${userSeed}`
       })
     });
@@ -951,13 +1018,13 @@ window.triggerMockGift = async (giftName, count, diamondCount) => {
 
 window.triggerMockChat = async () => {
   const userSeed = Math.floor(Math.random() * 1000);
-  const comments = ['Chào chủ phòng!', 'Nhạc hay quá', 'Chào mọi người', 'Xin chào', 'Nhạc cuốn quá'];
+  const comments = ['ChÃ o chá»§ phÃ²ng!', 'Nháº¡c hay quÃ¡', 'ChÃ o má»i ngÆ°á»i', 'Xin chÃ o', 'Nháº¡c cuá»‘n quÃ¡'];
   try {
     await fetch('/api/tiktok/mock-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nickname: `Người xem ${userSeed}`,
+        nickname: `NgÆ°á»i xem ${userSeed}`,
         uniqueId: `viewer_${userSeed}`,
         comment: comments[Math.floor(Math.random() * comments.length)]
       })
@@ -985,16 +1052,16 @@ async function loadLicenseStatus() {
     const data = await res.json();
 
     if (data.reason === 'trial' && data.daysLeft !== undefined) {
-      trialBanner.textContent = `⏱️ Dùng thử — Còn ${data.daysLeft} ngày (hết hạn ${data.expiryDate})`;
+      trialBanner.textContent = `â±ï¸ DÃ¹ng thá»­ â€” CÃ²n ${data.daysLeft} ngÃ y (háº¿t háº¡n ${data.expiryDate})`;
       trialBanner.style.display = 'block';
-      licenseInfo.innerHTML = `<p class="setting-help" style="color: var(--warning-color);">🔑 Bản dùng thử — Còn ${data.daysLeft} ngày</p>`;
+      licenseInfo.innerHTML = `<p class="setting-help" style="color: var(--warning-color);">ðŸ”‘ Báº£n dÃ¹ng thá»­ â€” CÃ²n ${data.daysLeft} ngÃ y</p>`;
     } else if (data.reason === 'monthly') {
-      licenseInfo.innerHTML = `<p class="setting-help" style="color: var(--success-color);">✅ Đã kích hoạt — Key hợp lệ tháng này</p>`;
+      licenseInfo.innerHTML = `<p class="setting-help" style="color: var(--success-color);">âœ… ÄÃ£ kÃ­ch hoáº¡t â€” Key há»£p lá»‡ thÃ¡ng nÃ y</p>`;
     } else {
-      licenseInfo.innerHTML = `<p class="setting-help">Trạng thái: ${data.reason || 'Chưa rõ'}</p>`;
+      licenseInfo.innerHTML = `<p class="setting-help">Tráº¡ng thÃ¡i: ${data.reason || 'ChÆ°a rÃµ'}</p>`;
     }
   } catch (e) {
-    licenseInfo.innerHTML = '<p class="setting-help">Không thể tải thông tin bản quyền</p>';
+    licenseInfo.innerHTML = '<p class="setting-help">KhÃ´ng thá»ƒ táº£i thÃ´ng tin báº£n quyá»n</p>';
   }
 }
 

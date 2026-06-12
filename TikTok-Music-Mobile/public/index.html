@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0c15">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Tự động phát nhạc theo quà tặng TikTok Live - Phiên bản Android">
+  <title>TikTok Live Auto Music</title>
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/css/mobile.css">
+</head>
+<body>
+  <!-- Background Glows -->
+  <div class="bg-glow">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+  </div>
+
+  <!-- Trial Banner (shown dynamically by JS) -->
+  <div class="trial-banner" id="trialBanner" style="display:none;"></div>
+
+  <!-- App Wrapper -->
+  <div class="app-wrapper">
+
+    <!-- ===== TAB 1: PLAYER ===== -->
+    <div class="page-view active" id="pagePlayer">
+      <!-- Header -->
+      <div class="page-header">
+        <div class="header-left">
+          <i class="fa-brands fa-tiktok header-logo"></i>
+          <h1>Auto Music</h1>
+        </div>
+        <div class="header-right">
+          <span class="status-dot disconnected" id="headerStatusDot"></span>
+        </div>
+      </div>
+
+      <!-- Player Widget -->
+      <div class="player-widget">
+        <div class="vinyl-container">
+          <div class="vinyl" id="vinylDisk">
+            <div class="vinyl-center"></div>
+          </div>
+          <i class="fa-solid fa-music musical-note note-1"></i>
+          <i class="fa-solid fa-music musical-note note-2"></i>
+        </div>
+
+        <div class="player-info">
+          <h3 class="song-title" id="currentSongTitle">Chưa phát nhạc</h3>
+          <p class="song-status" id="playerStatus">Đang dừng</p>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-container">
+          <span class="time-label" id="currentTime">0:00</span>
+          <div class="progress-bar-wrapper" id="progressWrapper">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <span class="time-label" id="totalTime">0:00</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="player-controls">
+          <button class="btn-ctrl" id="clearQueueBtn" title="Xóa hàng đợi">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+          <button class="btn-ctrl" id="prevQueueBtn" title="Bài trước">
+            <i class="fa-solid fa-backward-step"></i>
+          </button>
+          <button class="btn-play" id="playPauseBtn" title="Phát/Tạm dừng">
+            <i class="fa-solid fa-play" id="playIcon"></i>
+          </button>
+          <button class="btn-ctrl" id="skipBtn" title="Bỏ qua">
+            <i class="fa-solid fa-forward-step"></i>
+          </button>
+          <button class="btn-ctrl" id="shuffleBtn" title="Trộn ngẫu nhiên">
+            <i class="fa-solid fa-shuffle"></i>
+          </button>
+        </div>
+
+        <!-- Volume -->
+        <div class="volume-control">
+          <i class="fa-solid fa-volume-high" id="volumeIcon"></i>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.7">
+          <span class="volume-label" id="volumeLabel">70%</span>
+        </div>
+      </div>
+
+      <!-- Queue Section -->
+      <div class="queue-header">
+        <h3><i class="fa-solid fa-list-ol"></i> Hàng Đợi Phát</h3>
+        <span class="badge" id="queueCount">0</span>
+      </div>
+      <div class="queue-list" id="queueList">
+        <div class="empty-state">
+          <i class="fa-solid fa-hourglass"></i>
+          <p>Hàng đợi trống. Nhạc sẽ tự thêm khi nhận quà!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 2: LIBRARY ===== -->
+    <div class="page-view" id="pageLibrary">
+      <div class="page-header">
+        <h1><i class="fa-solid fa-music"></i> Thư Viện Nhạc</h1>
+        <span class="badge" id="songCount">0 bài</span>
+      </div>
+
+      <!-- Upload -->
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" multiple accept="audio/*" style="display:none;">
+        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+        <p class="upload-text">Bấm để chọn file nhạc hoặc <span>kéo thả</span></p>
+        <p class="upload-subtext">MP3, WAV, OGG, M4A — tối đa 20MB</p>
+      </div>
+
+      <!-- Playlist Setup -->
+      <div class="section-divider">
+        <h3><i class="fa-solid fa-list-check"></i> Danh Sách Phát</h3>
+        <span class="badge" id="playlistCount">0</span>
+      </div>
+      <div class="library-list" id="playlistList">
+        <div class="empty-state">
+          <i class="fa-solid fa-list-check"></i>
+          <p>Bấm nút '+' bên dưới để thêm nhạc vào danh sách phát.</p>
+        </div>
+      </div>
+
+      <!-- All Songs -->
+      <div class="section-divider">
+        <h3><i class="fa-solid fa-folder-open"></i> Tất Cả Bài Hát</h3>
+      </div>
+      <div class="library-list" id="libraryList">
+        <div class="empty-state">
+          <i class="fa-solid fa-folder-open"></i>
+          <p>Chưa có bài hát nào. Upload nhạc ở trên!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 3: GIFT MAPPINGS ===== -->
+    <div class="page-view" id="pageGift">
+      <div class="page-header">
+        <h1><i class="fa-solid fa-gift"></i> Nhạc Theo Quà</h1>
+      </div>
+
+      <!-- Add Mapping Form -->
+      <div class="mapping-form glass">
+        <div class="form-group">
+          <label for="mappingGiftName">Tên Quà Tặng</label>
+          <input type="text" id="mappingGiftName" class="form-input" placeholder="Ví dụ: Hoa hồng, Rose...">
+        </div>
+        <div class="form-group">
+          <label for="mappingSongSelect">Bài Hát Sẽ Phát</label>
+          <select id="mappingSongSelect" class="form-input form-select">
+            <option value="">-- Chọn bài hát --</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-full" id="addMappingBtn">
+          <i class="fa-solid fa-link"></i> Thêm Liên Kết
+        </button>
+      </div>
+
+      <!-- Mapping List -->
+      <div class="section-divider">
+        <h3><i class="fa-solid fa-list"></i> Danh Sách Liên Kết</h3>
+      </div>
+      <div class="mapping-list" id="mappingList">
+        <div class="empty-state">
+          <i class="fa-solid fa-link-slash"></i>
+          <p>Chưa có liên kết nào. Nhạc sẽ phát tuần tự theo Playlist.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 4: TIKTOK LIVE ===== -->
+    <div class="page-view" id="pageLive">
+      <div class="page-header">
+        <h1><i class="fa-solid fa-tower-broadcast"></i> TikTok Live</h1>
+        <div class="status-indicator" id="liveStatusIndicator">
+          <span class="status-dot disconnected" id="statusDot"></span>
+          <span class="status-text" id="statusText">Chưa kết nối</span>
+          <span class="viewer-badge" id="viewerBadge" style="display:none;">
+            <i class="fa-solid fa-eye"></i> <span id="viewerCount">0</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Connect Card -->
+      <div class="connection-card glass">
+        <div class="input-row">
+          <span class="input-at">@</span>
+          <input type="text" id="tiktokUsernameInput" class="form-input" placeholder="nhập_username_tiktok..." autocomplete="off" autocorrect="off" autocapitalize="off">
+        </div>
+        <button class="btn btn-primary btn-full" id="connectBtn">
+          <i class="fa-solid fa-plug"></i> Kết Nối Live
+        </button>
+      </div>
+
+      <!-- Mock Testing -->
+      <div class="mock-panel glass">
+        <h4><i class="fa-solid fa-flask"></i> Chạy Thử Nghiệm</h4>
+        <p class="setting-help">Gửi quà/chat giả để test mà không cần live thật.</p>
+        <div class="mock-buttons">
+          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Hoa hồng', 1, 1)">🌹 1 Xu</button>
+          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Nước hoa', 1, 9)">🧪 9 Xu</button>
+          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Vương miện', 1, 99)">👑 99 Xu</button>
+          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Vũ trụ', 1, 299)">🪐 299 Xu</button>
+          <button class="btn btn-outline btn-sm" onclick="triggerMockChat()" style="border-color: var(--secondary-color); color: var(--secondary-color);">💬 Test Chat</button>
+        </div>
+      </div>
+
+      <!-- Live Log -->
+      <div class="section-divider">
+        <h3><i class="fa-solid fa-bolt"></i> Sự Kiện Live</h3>
+      </div>
+      <div class="log-container" id="logContainer">
+        <div class="sys-message info">Hệ thống sẵn sàng. Nhập username hoặc bấm nút thử nghiệm!</div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 5: SETTINGS ===== -->
+    <div class="page-view" id="pageSettings">
+      <div class="page-header">
+        <h1><i class="fa-solid fa-gear"></i> Cài Đặt</h1>
+      </div>
+
+      <div class="settings-list">
+        <!-- Min Coins -->
+        <div class="settings-group">
+          <h3><i class="fa-solid fa-filter"></i> Điều Kiện Kích Hoạt</h3>
+          <div class="setting-item">
+            <label for="minCoins">Giá trị quà tối thiểu (Xu)</label>
+            <input type="number" id="minCoins" class="form-input" min="1" value="1" style="width: 80px; text-align: center;">
+          </div>
+          <p class="setting-help">Bỏ qua quà có giá trị nhỏ hơn số xu này.</p>
+        </div>
+
+        <!-- Chat TTS -->
+        <div class="settings-group">
+          <h3><i class="fa-solid fa-comments"></i> Đọc Bình Luận (TTS)</h3>
+          <div class="setting-item">
+            <label for="chatTtsEnabled">Tự động đọc bình luận</label>
+            <div class="toggle-switch" id="chatTtsToggle" data-setting="chatTtsEnabled">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <p class="setting-help">Dùng giọng Tiếng Việt để đọc bình luận trên live.</p>
+        </div>
+
+        <!-- OBS Overlay -->
+        <div class="settings-group">
+          <h3><i class="fa-solid fa-tv"></i> OBS Overlay</h3>
+          <p class="setting-help">Copy URL dưới đây vào Browser Source trong OBS:</p>
+          <div class="copy-url-box">
+            <input type="text" id="obsOverlayUrl" class="form-input" readonly value="http://localhost:3000/overlay.html">
+            <button class="btn btn-primary btn-sm" id="copyUrlBtn">Copy</button>
+          </div>
+        </div>
+
+        <!-- License Info -->
+        <div class="settings-group">
+          <h3><i class="fa-solid fa-shield-halved"></i> Bản Quyền</h3>
+          <div class="license-info" id="licenseInfo">
+            <p class="setting-help">Đang tải thông tin...</p>
+          </div>
+        </div>
+
+        <!-- About -->
+        <div class="settings-group">
+          <h3><i class="fa-solid fa-circle-info"></i> Thông Tin</h3>
+          <p class="setting-help">TikTok Live Auto Music — Android Edition<br>Phiên bản 1.0.0</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-item active" data-page="pagePlayer">
+      <i class="fa-solid fa-play"></i>
+      <span>Phát Nhạc</span>
+    </button>
+    <button class="nav-item" data-page="pageLibrary">
+      <i class="fa-solid fa-music"></i>
+      <span>Thư Viện</span>
+    </button>
+    <button class="nav-item" data-page="pageGift">
+      <i class="fa-solid fa-gift"></i>
+      <span>Quà→Nhạc</span>
+    </button>
+    <button class="nav-item" data-page="pageLive">
+      <i class="fa-solid fa-tower-broadcast"></i>
+      <span>Live</span>
+    </button>
+    <button class="nav-item" data-page="pageSettings">
+      <i class="fa-solid fa-gear"></i>
+      <span>Cài Đặt</span>
+    </button>
+  </nav>
+
+  <!-- Hidden Audio Player -->
+  <audio id="mainAudioPlayer" style="display:none;"></audio>
+
+  <!-- Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/synth-engine.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Live Auto Music - OBS Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/overlay.css">
+</head>
+<body>
+  <div class="overlay-wrapper">
+    <div class="gift-alert-container" id="giftAlertContainer"></div>
+    <div class="now-playing-container" id="nowPlayingContainer">
+      <div class="now-playing-card glass">
+        <div class="vinyl-thumbnail" id="overlayVinyl">
+          <div class="vinyl-center"></div>
+        </div>
+        <div class="song-details">
+          <span class="now-playing-label" id="stateLabel"><i class="fa-solid fa-compact-disc"></i> ĐANG PHÁT</span>
+          <h2 class="song-title" id="songTitle">Chờ nhận quà...</h2>
+          <p class="song-donor" id="songDonor">Gửi quà tặng để phát nhạc</p>
+        </div>
+        <div class="sound-visualizer" id="visualizer">
+          <span class="bar bar-1"></span><span class="bar bar-2"></span><span class="bar bar-3"></span>
+          <span class="bar bar-4"></span><span class="bar bar-5"></span><span class="bar bar-6"></span>
+          <span class="bar bar-7"></span><span class="bar bar-8"></span><span class="bar bar-9"></span>
+          <span class="bar bar-10"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/overlay.js"></script>
+</body>
+</html>

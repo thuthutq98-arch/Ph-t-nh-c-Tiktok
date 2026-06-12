@@ -1,0 +1,234 @@
+/* TikTok Live Auto Music - OBS Overlay Stylesheet */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: transparent;
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+.overlay-wrapper {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Gift Alert - Top Center */
+.gift-alert-container {
+  position: fixed;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  pointer-events: none;
+}
+
+.gift-alert-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgba(10, 11, 20, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 0, 80, 0.15);
+  animation: giftSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1), giftFadeOut 0.4s ease-in 4.6s forwards;
+  overflow: hidden;
+  min-width: 320px;
+}
+
+.gift-glow-effect {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 0, 80, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.sender-avatar {
+  font-size: 2.2rem;
+  min-width: 50px;
+  text-align: center;
+}
+
+.alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sender-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.alert-desc {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 400;
+}
+
+.song-queued-alert {
+  font-size: 0.8rem;
+  color: #00f2fe;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+@keyframes giftSlideIn {
+  0% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes giftFadeOut {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-15px); }
+}
+
+/* Now Playing Widget - Bottom Left */
+.now-playing-container {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  z-index: 50;
+}
+
+.now-playing-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 22px 14px 14px;
+  background: rgba(10, 11, 20, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  transition: all 0.5s ease;
+  min-width: 280px;
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.now-playing-card.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Mini Vinyl in overlay */
+.vinyl-thumbnail {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #333 0%, #111 40%, #000 100%);
+  border: 3px solid #1a1a24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vinyl-thumbnail .vinyl-center {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff0050, #00f2fe);
+  border: 1.5px solid #000;
+}
+
+.vinyl-thumbnail.spinning {
+  animation: rotateVinyl 3s linear infinite;
+}
+
+@keyframes rotateVinyl {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Song details */
+.now-playing-card .song-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.now-playing-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #00f2fe;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.now-playing-label i {
+  animation: rotateVinyl 3s linear infinite;
+}
+
+.now-playing-card .song-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.now-playing-card .song-donor {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Sound Visualizer Bars */
+.sound-visualizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 30px;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.sound-visualizer.active {
+  opacity: 1;
+}
+
+.sound-visualizer .bar {
+  display: block;
+  width: 3px;
+  border-radius: 1.5px;
+  background: linear-gradient(to top, #ff0050, #00f2fe);
+}
+
+.bar-1 { animation: soundBar 0.8s 0s infinite ease-in-out alternate; }
+.bar-2 { animation: soundBar 0.8s 0.1s infinite ease-in-out alternate; }
+.bar-3 { animation: soundBar 0.8s 0.2s infinite ease-in-out alternate; }
+.bar-4 { animation: soundBar 0.8s 0.3s infinite ease-in-out alternate; }
+.bar-5 { animation: soundBar 0.8s 0.15s infinite ease-in-out alternate; }
+.bar-6 { animation: soundBar 0.8s 0.25s infinite ease-in-out alternate; }
+.bar-7 { animation: soundBar 0.8s 0.05s infinite ease-in-out alternate; }
+.bar-8 { animation: soundBar 0.8s 0.35s infinite ease-in-out alternate; }
+.bar-9 { animation: soundBar 0.8s 0.12s infinite ease-in-out alternate; }
+.bar-10 { animation: soundBar 0.8s 0.28s infinite ease-in-out alternate; }
+
+@keyframes soundBar {
+  0% { height: 4px; }
+  100% { height: 26px; }
+}

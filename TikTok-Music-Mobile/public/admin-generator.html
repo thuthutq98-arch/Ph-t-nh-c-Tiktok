@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bộ Cấp Key Bản Quyền — TikTok Music</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-color: #0b0c15;
+      --panel-bg: rgba(18, 20, 38, 0.65);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text-primary: #f1f3f9;
+      --text-secondary: #9aa0b9;
+      --primary-color: #ff0050;
+      --secondary-color: #00f2fe;
+      --success-color: #00e676;
+      --font-family: 'Outfit', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Background Ambient Glows */
+    .glow-1 {
+      position: fixed;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(255, 0, 80, 0.15) 0%, transparent 70%);
+      top: -50px;
+      left: -50px;
+      z-index: -1;
+    }
+
+    .glow-2 {
+      position: fixed;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(0, 242, 254, 0.12) 0%, transparent 70%);
+      bottom: -50px;
+      right: -50px;
+      z-index: -1;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 450px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 30px 24px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .header i {
+      font-size: 2.5rem;
+      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #ffffff, #c7d2fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 5px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-wrapper i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      color: #fff;
+      font-family: var(--font-family);
+      font-size: 0.95rem;
+      padding: 12px 14px 12px 42px;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--secondary-color);
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+      background: rgba(0, 242, 254, 0.02);
+    }
+
+    .form-select {
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .select-wrapper::after {
+      content: '\f107';
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-secondary);
+      pointer-events: none;
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: linear-gradient(45deg, var(--primary-color), #ff007f);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 10px;
+      box-shadow: 0 4px 15px rgba(255, 0, 80, 0.3);
+    }
+
+    .btn-submit:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 5px rgba(255, 0, 80, 0.3);
+    }
+
+    /* Result Box */
+    .result-box {
+      margin-top: 25px;
+      background: rgba(0, 230, 118, 0.06);
+      border: 1px dashed var(--success-color);
+      border-radius: 12px;
+      padding: 18px;
+      display: none;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--success-color);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .key-display-wrapper {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .key-display {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #fff;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    .btn-copy {
+      background: var(--success-color);
+      color: #0b0c15;
+      border: none;
+      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .btn-copy:active {
+      transform: scale(0.9);
+    }
+
+    .result-info {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+
+    .error-box {
+      margin-top: 15px;
+      background: rgba(255, 61, 0, 0.08);
+      border: 1px solid var(--error-color);
+      border-radius: 12px;
+      padding: 12px;
+      color: #ff8a65;
+      font-size: 0.85rem;
+      display: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+
+  <div class="container">
+    <div class="header">
+      <i class="fa-solid fa-key"></i>
+      <h1>Bộ Cấp Key Bản Quyền</h1>
+      <p>Tạo khóa kích hoạt gắn theo mã máy riêng biệt</p>
+    </div>
+
+    <form id="keyForm" onsubmit="generateKey(event)">
+      <!-- Admin Password -->
+      <div class="form-group">
+        <label for="adminPassword">Mật khẩu Admin</label>
+        <div class="input-wrapper">
+          <i class="fa-solid fa-lock"></i>
+          <input type="password" id="adminPassword" class="form-input" placeholder="Nhập mật khẩu quản trị..." required>
+        </div>
+      </div>
+
+      <!-- Target Machine ID -->
+      <div class="form-group">
+        <label for="machineId">Mã máy khách (Machine ID)</label>
+        <div class="input-wrapper">
+          <i class="fa-solid fa-laptop"></i>
+          <input type="text" id="machineId" class="form-input" placeholder="Ví dụ: RENDER-1234_APP..." required>
+        </div>
+      </div>
+
+      <!-- Key Type -->
+      <div class="form-group">
+        <label for="keyType">Loại Key</label>
+        <div class="input-wrapper select-wrapper">
+          <i class="fa-solid fa-clock"></i>
+          <select id="keyType" class="form-select" onchange="toggleDaysField()">
+            <option value="trial">Dùng thử theo số ngày</option>
+            <option value="monthly">Theo tháng hiện tại</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Custom Days -->
+      <div class="form-group" id="daysGroup">
+        <label for="days">Số ngày sử dụng</label>
+        <div class="input-wrapper">
+          <i class="fa-solid fa-calendar-day"></i>
+          <input type="number" id="days" class="form-input" min="1" max="365" value="30" placeholder="Số ngày sử dụng...">
+        </div>
+      </div>
+
+      <button type="submit" class="btn-submit">Tạo Khóa Kích Hoạt</button>
+    </form>
+
+    <div id="errorBox" class="error-box"></div>
+
+    <div id="resultBox" class="result-box">
+      <div class="result-title">Khóa kích hoạt của bạn:</div>
+      <div class="key-display-wrapper">
+        <div id="keyDisplay" class="key-display">XXXX-XXXX-XXXX-XXXX</div>
+        <button id="copyBtn" class="btn-copy" onclick="copyKey()">
+          <i class="fa-regular fa-copy"></i>
+        </button>
+      </div>
+      <div id="resultInfo" class="result-info"></div>
+    </div>
+  </div>
+
+  <script>
+    function toggleDaysField() {
+      const keyType = document.getElementById('keyType').value;
+      const daysGroup = document.getElementById('daysGroup');
+      if (keyType === 'monthly') {
+        daysGroup.style.display = 'none';
+      } else {
+        daysGroup.style.display = 'block';
+      }
+    }
+
+    async function generateKey(event) {
+      event.preventDefault();
+      
+      const password = document.getElementById('adminPassword').value;
+      const targetMachineId = document.getElementById('machineId').value.trim();
+      const keyType = document.getElementById('keyType').value;
+      const days = document.getElementById('days').value;
+      
+      const errorBox = document.getElementById('errorBox');
+      const resultBox = document.getElementById('resultBox');
+      
+      errorBox.style.display = 'none';
+      resultBox.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/admin/generate-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, targetMachineId, keyType, days })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Lỗi kết nối máy chủ');
+        }
+
+        document.getElementById('keyDisplay').textContent = data.key;
+        
+        let infoText = '';
+        if (data.type === 'monthly') {
+          infoText = `Hạn dùng: Hết ${data.expiryLabel}. Key này có giá trị cho đến hết tháng dương lịch hiện tại.`;
+        } else {
+          infoText = `Hạn dùng đến hết ngày: ${data.expiryLabel}. Key này có hiệu lực trong vòng ${days} ngày kể từ hôm nay.`;
+        }
+        document.getElementById('resultInfo').textContent = infoText;
+        
+        resultBox.style.display = 'block';
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      }
+    }
+
+    function copyKey() {
+      const keyText = document.getElementById('keyDisplay').textContent;
+      const copyBtn = document.getElementById('copyBtn');
+      
+      navigator.clipboard.writeText(keyText).then(() => {
+        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        copyBtn.style.background = '#00e676';
+        setTimeout(() => {
+          copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+          copyBtn.style.background = 'var(--success-color)';
+        }, 2000);
+      }).catch(() => {
+        // Fallback for some browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = keyText;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        copyBtn.style.background = '#00e676';
+        setTimeout(() => {
+          copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+          copyBtn.style.background = 'var(--success-color)';
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

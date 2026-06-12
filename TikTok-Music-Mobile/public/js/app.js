@@ -41,6 +41,17 @@ if (!window.location.pathname.includes('activation.html') && !window.location.pa
   .catch(e => console.error('License check error', e));
 }
 
+// === Multi-Room Support ===
+const urlParams = new URLSearchParams(window.location.search);
+let currentRoom = urlParams.get('room') || '';
+
+// Helper: add room param to API URL
+function roomUrl(url) {
+  if (!currentRoom) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}room=${encodeURIComponent(currentRoom)}`;
+}
+
 // === Global State ===
 let socket = null;
 let library = [];
@@ -171,7 +182,7 @@ function setupBottomNav() {
 // ========================================
 async function loadConfig() {
   try {
-    const res = await fetch('/api/config');
+    const res = await fetch(roomUrl('/api/config'));
     systemConfig = { ...systemConfig, ...(await res.json()) };
 
     tiktokUsernameInput.value = systemConfig.tiktokUsername || '';
@@ -199,7 +210,7 @@ async function loadConfig() {
 
 async function saveConfig() {
   try {
-    await fetch('/api/config', {
+    await fetch(roomUrl('/api/config'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(systemConfig)
@@ -244,6 +255,11 @@ async function loadSongsList() {
 // ========================================
 function initSocket() {
   socket = io();
+
+  // Join room if we have one
+  if (currentRoom) {
+    socket.emit('join-room', currentRoom);
+  }
 
   socket.on('tiktok-status', (data) => {
     updateConnectionStatus(data.status, data.username);
@@ -535,12 +551,22 @@ function setupEventListeners() {
       return;
     }
     const isConnected = connectBtn.classList.contains('btn-danger');
-    const endpoint = isConnected ? '/api/tiktok/disconnect' : '/api/tiktok/connect';
+    
+    if (!isConnected) {
+      // Set room to username and join
+      currentRoom = username;
+      window.history.replaceState({}, '', `?room=${encodeURIComponent(username)}`);
+      socket.emit('join-room', currentRoom);
+      // Reload config for this room
+      await loadConfig();
+    }
+    
+    const endpoint = isConnected ? roomUrl('/api/tiktok/disconnect') : '/api/tiktok/connect';
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
+        body: JSON.stringify({ username, room: currentRoom })
       });
       const data = await res.json();
       if (data.error) addLog('system', 'error', data.error);
@@ -1002,7 +1028,7 @@ function addLog(type, status, data) {
 window.triggerMockGift = async (giftName, count, diamondCount) => {
   const userSeed = Math.floor(Math.random() * 1000);
   try {
-    await fetch('/api/tiktok/mock-gift', {
+    await fetch(roomUrl('/api/tiktok/mock-gift'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1010,7 +1036,8 @@ window.triggerMockGift = async (giftName, count, diamondCount) => {
         count,
         diamondCount,
         nickname: `NgÆ°á»i xem ${userSeed}`,
-        uniqueId: `viewer_${userSeed}`
+        uniqueId: `viewer_${userSeed}`,
+        room: currentRoom
       })
     });
   } catch (e) {}
@@ -1020,13 +1047,14 @@ window.triggerMockChat = async () => {
   const userSeed = Math.floor(Math.random() * 1000);
   const comments = ['ChÃ o chá»§ phÃ²ng!', 'Nháº¡c hay quÃ¡', 'ChÃ o má»i ngÆ°á»i', 'Xin chÃ o', 'Nháº¡c cuá»‘n quÃ¡'];
   try {
-    await fetch('/api/tiktok/mock-chat', {
+    await fetch(roomUrl('/api/tiktok/mock-chat'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nickname: `NgÆ°á»i xem ${userSeed}`,
         uniqueId: `viewer_${userSeed}`,
-        comment: comments[Math.floor(Math.random() * comments.length)]
+        comment: comments[Math.floor(Math.random() * comments.length)],
+        room: currentRoom
       })
     });
   } catch (e) {}
@@ -1041,6 +1069,21 @@ async function loadNetworkInfo() {
     const data = await res.json();
     obsOverlayUrlInput.value = data.overlayUrl || `http://localhost:3000/overlay.html`;
   } catch (e) {}
+}
+
+// ========================================
+// TIKTOK STATUS CHECK (for room)
+// ========================================
+async function checkTikTokStatus() {
+  if (!currentRoom) return;
+  try {
+    const res = await fetch(roomUrl('/api/tiktok/status'));
+    const data = await res.json();
+    updateConnectionStatus(data.status, data.username);
+    if (data.status === 'connected') {
+      tiktokUsernameInput.value = data.username;
+    }
+  } catch(e) {}
 }
 
 // ========================================

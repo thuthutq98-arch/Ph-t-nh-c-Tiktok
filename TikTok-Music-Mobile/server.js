@@ -407,6 +407,37 @@ app.post('/api/activate', (req, res) => {
   res.status(400).json({ error: 'Mã kích hoạt không chính xác hoặc đã hết hạn!' });
 });
 
+// --- STATS API ---
+app.get('/api/stats', (req, res) => {
+  const onlineCount = io.engine.clientCount || 0;
+  const roomCount = rooms.size;
+  const roomList = [];
+  rooms.forEach((room, id) => {
+    roomList.push({
+      name: id,
+      clients: room.clients ? room.clients.size : 0,
+      tiktokConnected: room.tiktokConnected || false
+    });
+  });
+
+  // Trial stats
+  const trialUsed = loadTrialUsed();
+  const today = getTodayStr();
+  let trialTotal = 0, trialActive = 0, trialExpired = 0;
+  Object.values(trialUsed).forEach(t => {
+    trialTotal++;
+    if (today > t.expiryDate) trialExpired++;
+    else trialActive++;
+  });
+
+  res.json({
+    online: onlineCount,
+    rooms: roomCount,
+    roomList,
+    trial: { total: trialTotal, active: trialActive, expired: trialExpired }
+  });
+});
+
 app.post('/api/admin/generate-key', (req, res) => {
   const { password, targetMachineId, keyType, days } = req.body;
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';

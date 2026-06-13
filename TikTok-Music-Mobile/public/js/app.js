@@ -168,6 +168,78 @@ const mappingGiftName = document.getElementById('mappingGiftName');
 const mappingSongSelect = document.getElementById('mappingSongSelect');
 const addMappingBtn = document.getElementById('addMappingBtn');
 const mappingList = document.getElementById('mappingList');
+const customGiftGroup = document.getElementById('customGiftGroup');
+const customGiftInput = document.getElementById('customGiftInput');
+
+// === Known Gifts System ===
+// Pre-built common TikTok gifts (English API name → Vietnamese label + diamond)
+const DEFAULT_GIFTS = [
+  { name: 'Rose', label: 'Hoa hồng (Rose)', diamonds: 1 },
+  { name: 'GG', label: 'GG', diamonds: 1 },
+  { name: 'Ice Cream Cone', label: 'Kem ốc quế (Ice Cream)', diamonds: 1 },
+  { name: 'Finger Heart', label: 'Tim ngón tay (Finger Heart)', diamonds: 5 },
+  { name: 'Doughnut', label: 'Bánh Donut', diamonds: 30 },
+  { name: 'Hand Heart', label: 'Tim tay (Hand Heart)', diamonds: 10 },
+  { name: 'Perfume', label: 'Nước hoa (Perfume)', diamonds: 20 },
+  { name: 'Little Crown', label: 'Vương miện nhỏ (Little Crown)', diamonds: 99 },
+  { name: 'Galaxy', label: 'Thiên hà (Galaxy)', diamonds: 1000 },
+  { name: 'lucky pig', label: 'Heo may mắn (Lucky Pig)', diamonds: 1 },
+  { name: 'Confetti', label: 'Hoa giấy (Confetti)', diamonds: 100 },
+  { name: 'Paper Crane', label: 'Hạc giấy (Paper Crane)', diamonds: 1 },
+  { name: 'TikTok', label: 'TikTok', diamonds: 1 },
+  { name: 'Love you', label: 'Yêu bạn (Love You)', diamonds: 25 },
+  { name: 'Cap', label: 'Mũ lưỡi trai (Cap)', diamonds: 99 },
+];
+
+let knownGifts = []; // { name, label, diamonds }
+
+function loadKnownGifts() {
+  try {
+    const raw = localStorage.getItem('tiktok_known_gifts');
+    if (raw) knownGifts = JSON.parse(raw);
+  } catch(e) {}
+  // Merge defaults (avoid duplicates)
+  DEFAULT_GIFTS.forEach(dg => {
+    if (!knownGifts.find(kg => kg.name.toLowerCase() === dg.name.toLowerCase())) {
+      knownGifts.push(dg);
+    }
+  });
+}
+
+function saveKnownGifts() {
+  try { localStorage.setItem('tiktok_known_gifts', JSON.stringify(knownGifts)); } catch(e) {}
+}
+
+function addKnownGift(name, diamonds) {
+  if (!name) return;
+  const existing = knownGifts.find(g => g.name.toLowerCase() === name.toLowerCase());
+  if (!existing) {
+    knownGifts.push({ name, label: name + (diamonds ? ` (${diamonds}💎)` : ''), diamonds: diamonds || 0 });
+    saveKnownGifts();
+    renderGiftDropdown();
+  }
+}
+
+function renderGiftDropdown() {
+  if (!mappingGiftName) return;
+  const currentVal = mappingGiftName.value;
+  mappingGiftName.innerHTML = '<option value="">-- Chọn quà tặng --</option>';
+  // Sort by diamonds descending
+  const sorted = [...knownGifts].sort((a, b) => (b.diamonds || 0) - (a.diamonds || 0));
+  sorted.forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g.name;
+    opt.textContent = g.label || g.name;
+    mappingGiftName.appendChild(opt);
+  });
+  // Manual input option
+  const manualOpt = document.createElement('option');
+  manualOpt.value = '__MANUAL__';
+  manualOpt.textContent = '✏️ Nhập tên quà thủ công...';
+  mappingGiftName.appendChild(manualOpt);
+  // Restore value
+  if (currentVal) mappingGiftName.value = currentVal;
+}
 
 // ========================================
 // INITIALIZATION
@@ -180,6 +252,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Setup bottom navigation
   setupBottomNav();
+
+  // Load known gifts from localStorage
+  loadKnownGifts();
+  renderGiftDropdown();
 
   // Load config + songs
   await loadConfig();
@@ -386,6 +462,9 @@ function initSocket() {
 
   socket.on('gift', (data) => {
     addLog('gift', 'success', data);
+
+    // Auto-collect gift name for dropdown
+    addKnownGift(data.giftName, data.diamondCount);
 
     const minCoins = parseInt(minCoinsInput.value) || 1;
     const totalCoins = data.diamondCount * data.repeatCount;
@@ -774,13 +853,28 @@ function setupEventListeners() {
     });
   });
 
+  // Gift dropdown: show/hide manual input
+  if (mappingGiftName) {
+    mappingGiftName.addEventListener('change', () => {
+      if (mappingGiftName.value === '__MANUAL__') {
+        customGiftGroup.style.display = 'block';
+        customGiftInput.focus();
+      } else {
+        customGiftGroup.style.display = 'none';
+      }
+    });
+  }
+
   // Add Mapping
   if (addMappingBtn) {
     addMappingBtn.addEventListener('click', async () => {
-      const giftName = mappingGiftName.value.trim();
+      let giftName = mappingGiftName.value;
+      if (giftName === '__MANUAL__') {
+        giftName = customGiftInput.value.trim();
+      }
       const songFilename = mappingSongSelect.value;
-      if (!giftName || !songFilename) {
-        addLog('system', 'warning', 'Điền đầy đủ tên quà và chọn bài hát!');
+      if (!giftName || giftName === '__MANUAL__' || !songFilename) {
+        addLog('system', 'warning', 'Chọn quà tặng và bài hát!');
         return;
       }
       systemConfig.giftMappings = systemConfig.giftMappings || {};
@@ -789,6 +883,8 @@ function setupEventListeners() {
       renderMappingList();
       mappingGiftName.value = '';
       mappingSongSelect.value = '';
+      customGiftGroup.style.display = 'none';
+      customGiftInput.value = '';
       addLog('system', 'success', `Đã liên kết quà "${giftName}" thành công!`);
     });
   }

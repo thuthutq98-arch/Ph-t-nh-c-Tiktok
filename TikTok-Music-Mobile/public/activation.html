@@ -334,7 +334,33 @@
         <div class="period-badge" id="periodBadge"></div>
       </div>
 
-      <div class="divider"><span>Sau khi nhận mã từ chủ phòng</span></div>
+      <!-- TRIAL KEY BOX -->
+      <div style="margin: 16px 0; padding: 16px; background: linear-gradient(135deg, rgba(0,230,118,0.08), rgba(0,242,254,0.08)); border: 1.5px solid rgba(0,230,118,0.3); border-radius: 14px; text-align: center;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #00e676; margin-bottom: 6px;">
+          🎁 DÙNG THỬ MIỄN PHÍ 3 NGÀY
+        </div>
+        <div style="font-size: 0.72rem; color: #9aa0b9; margin-bottom: 10px;">
+          Copy mã bên dưới và dán vào ô "Nhập Mã Kích Hoạt"
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+          <code id="trialKeyText" style="font-family: 'Courier New', monospace; font-size: 0.95rem; font-weight: 700; color: #00f2fe; letter-spacing: 1px; background: rgba(0,0,0,0.3); padding: 8px 14px; border-radius: 8px; user-select: all;">TRIAL-FREE-3DAY-2026</code>
+          <button id="copyTrialBtn" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px; background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.3); color: #00e676; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;" onclick="
+            const k = document.getElementById('trialKeyText').textContent;
+            navigator.clipboard.writeText(k).catch(() => {});
+            document.getElementById('activationKey').value = k;
+            this.innerHTML = '<i class=\'fa-solid fa-check\'></i>';
+            this.style.color = '#00ff87';
+            setTimeout(() => { this.innerHTML = '<i class=\'fa-solid fa-copy\'></i>'; this.style.color = '#00e676'; }, 2000);
+          ">
+            <i class="fa-solid fa-copy"></i>
+          </button>
+        </div>
+        <div style="font-size: 0.68rem; color: #ffb347; margin-top: 8px;">
+          ⚠️ Mỗi máy chỉ dùng được 1 lần. Hết 3 ngày cần key kích hoạt.
+        </div>
+      </div>
+
+      <div class="divider"><span>Hoặc nhập key từ chủ phòng</span></div>
 
       <!-- STEP 2 -->
       <div class="step">
@@ -342,7 +368,7 @@
           <div class="step-number">2</div>
           <span>Nhập Mã Kích Hoạt</span>
         </div>
-        <input type="text" id="activationKey" class="key-input" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" spellcheck="false">
+        <input type="text" id="activationKey" class="key-input" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="30" autocomplete="off" spellcheck="false">
         <button class="activate-btn" id="activateBtn">
           <i class="fa-solid fa-circle-check"></i>
           Kích Hoạt Ứng Dụng
@@ -468,7 +494,12 @@
 
       activateBtn.addEventListener('click', async () => {
         const key = keyInput.value.trim();
-        if (!key || key.replace(/-/g, '').length < 16) {
+        const isTrialKey = key.toUpperCase() === 'TRIAL-FREE-3DAY-2026';
+        if (!key) {
+          showStatus('Nhập mã kích hoạt!', 'error');
+          return;
+        }
+        if (!isTrialKey && key.replace(/-/g, '').length < 16) {
           showStatus('Nhập đầy đủ mã kích hoạt (16 ký tự)!', 'error');
           return;
         }
@@ -477,25 +508,24 @@
         showStatus('Đang xác minh...', 'info');
 
         try {
-          const res = await fetch('/api/verify-license', {
+          // Use /api/activate for both trial and regular keys
+          const res = await fetch('/api/activate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Device-Id': deviceId },
             body: JSON.stringify({ deviceId, key })
           });
           const data = await res.json();
-          if (res.ok && data.activated) {
+          if (res.ok && data.success) {
             // Save to localStorage
-            localStorage.setItem('license_key', key);
-            if (data.reason === 'trial') {
-              showStatus(`✅ Dùng thử! Còn ${data.daysLeft} ngày. Đang mở app...`, 'success');
+            localStorage.setItem('license_key', key.toUpperCase());
+            if (data.type === 'trial') {
+              showStatus(`✅ Dùng thử ${data.daysLeft} ngày! Đang mở app...`, 'success');
             } else {
               showStatus(`✅ Kích hoạt thành công! Đang mở app...`, 'success');
             }
             setTimeout(() => { window.location.href = '/'; }, 2000);
           } else {
-            let errorText = 'Mã không chính xác!';
-            if (data.reason === 'trial_expired') errorText = 'Key dùng thử đã hết hạn!';
-            showStatus('❌ ' + errorText, 'error');
+            showStatus('❌ ' + (data.error || 'Mã không chính xác!'), 'error');
             activateBtn.disabled = false;
             activateBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Kích Hoạt Ứng Dụng';
           }

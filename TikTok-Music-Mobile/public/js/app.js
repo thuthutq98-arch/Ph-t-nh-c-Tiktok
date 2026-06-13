@@ -275,9 +275,35 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Load license status
   loadLicenseStatus();
+
+  // Load stats + auto-refresh every 10s
+  loadStats();
+  setInterval(loadStats, 10000);
 });
 
 // ========================================
+// STATS DASHBOARD
+// ========================================
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    const el = (id) => document.getElementById(id);
+    if (el('statOnline')) el('statOnline').textContent = data.online || 0;
+    if (el('statRooms')) el('statRooms').textContent = data.rooms || 0;
+    if (el('statTrialTotal')) el('statTrialTotal').textContent = data.trial ? data.trial.total : 0;
+    if (el('statsDetail')) {
+      let detail = '';
+      if (data.trial) {
+        detail += `Trial: ${data.trial.active} đang dùng, ${data.trial.expired} đã hết hạn`;
+      }
+      if (data.roomList && data.roomList.length > 0) {
+        detail += '<br>Phòng: ' + data.roomList.map(r => `@${r.name} (${r.clients} người${r.tiktokConnected ? ', Live' : ''})`).join(', ');
+      }
+      el('statsDetail').innerHTML = detail;
+    }
+  } catch(e) {}
+}
 // BOTTOM NAVIGATION
 // ========================================
 function setupBottomNav() {

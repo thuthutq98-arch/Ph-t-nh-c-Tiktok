@@ -275,6 +275,27 @@
           </div>
         </div>
 
+        <!-- Stats Dashboard -->
+        <div class="settings-group">
+          <h3><i class="fa-solid fa-chart-simple"></i> Thống Kê Sử Dụng</h3>
+          <div id="statsPanel" style="display:flex; flex-wrap:wrap; gap:8px;">
+            <div style="flex:1; min-width:90px; background:rgba(0,242,254,0.06); border:1px solid rgba(0,242,254,0.15); border-radius:10px; padding:12px; text-align:center;">
+              <div style="font-size:1.4rem; font-weight:700; color:#00f2fe;" id="statOnline">-</div>
+              <div style="font-size:0.7rem; color:#9aa0b9; margin-top:2px;">Đang Online</div>
+            </div>
+            <div style="flex:1; min-width:90px; background:rgba(0,230,118,0.06); border:1px solid rgba(0,230,118,0.15); border-radius:10px; padding:12px; text-align:center;">
+              <div style="font-size:1.4rem; font-weight:700; color:#00e676;" id="statRooms">-</div>
+              <div style="font-size:0.7rem; color:#9aa0b9; margin-top:2px;">Phòng Hoạt Động</div>
+            </div>
+            <div style="flex:1; min-width:90px; background:rgba(255,0,80,0.06); border:1px solid rgba(255,0,80,0.15); border-radius:10px; padding:12px; text-align:center;">
+              <div style="font-size:1.4rem; font-weight:700; color:#ff0050;" id="statTrialTotal">-</div>
+              <div style="font-size:0.7rem; color:#9aa0b9; margin-top:2px;">Đã Dùng Thử</div>
+            </div>
+          </div>
+          <div id="statsDetail" style="margin-top:8px; font-size:0.75rem; color:#9aa0b9;"></div>
+          <p class="setting-help" style="margin-top:6px;">Tự động cập nhật mỗi 10 giây</p>
+        </div>
+
         <!-- License Info -->
         <div class="settings-group">
           <h3><i class="fa-solid fa-shield-halved"></i> Bản Quyền</h3>

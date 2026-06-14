@@ -1252,30 +1252,90 @@ const soundNames = {
   4: 'baby-laugh'
 };
 
-// Pre-load sound files
-Object.entries(soundNames).forEach(([num, name]) => {
-  const audio = new Audio(`/sounds/${name}.mp3`);
-  audio.preload = 'auto';
-  soundEffects[num] = audio;
-});
+// Load available sounds from server
+async function loadSoundEffects() {
+  try {
+    const res = await fetch('/api/sounds');
+    const files = await res.json();
+    Object.entries(soundNames).forEach(([num, name]) => {
+      const file = files.find(f => f.startsWith(name));
+      if (file) {
+        const audio = new Audio(`/sounds/${file}?t=${Date.now()}`);
+        audio.preload = 'auto';
+        soundEffects[num] = audio;
+        // Mark button as loaded
+        const btn = document.getElementById('soundBtn' + num);
+        if (btn) btn.style.opacity = '1';
+      } else {
+        // Mark button as empty
+        const btn = document.getElementById('soundBtn' + num);
+        if (btn) btn.style.opacity = '0.4';
+      }
+    });
+  } catch(e) {}
+}
 
+// Play sound
 window.playSoundEffect = (num) => {
   const audio = soundEffects[num];
-  if (!audio) return;
-
-  // Reset and play
+  if (!audio) {
+    // No sound file — open upload
+    uploadSoundForSlot(num);
+    return;
+  }
   audio.currentTime = 0;
   audio.play().catch(() => {});
-
-  // Pulse animation on button
   const btn = document.getElementById('soundBtn' + num);
   if (btn) {
     btn.classList.remove('playing');
-    void btn.offsetWidth; // force reflow
+    void btn.offsetWidth;
     btn.classList.add('playing');
     setTimeout(() => btn.classList.remove('playing'), 300);
   }
 };
+
+// Upload sound via file picker
+function uploadSoundForSlot(slot) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('sound', file);
+    formData.append('slot', String(slot));
+    try {
+      const res = await fetch('/api/upload-sound', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        addLog('system', 'success', `Upload âm thanh nút ${slot} thành công!`);
+        loadSoundEffects(); // reload
+      }
+    } catch(e) {
+      addLog('system', 'error', 'Lỗi upload âm thanh!');
+    }
+  };
+  input.click();
+}
+
+// Setup long-press to change sound
+function setupSoundLongPress() {
+  [1,2,3,4].forEach(num => {
+    const btn = document.getElementById('soundBtn' + num);
+    if (!btn) return;
+    let timer;
+    btn.addEventListener('pointerdown', () => {
+      timer = setTimeout(() => { uploadSoundForSlot(num); }, 800);
+    });
+    btn.addEventListener('pointerup', () => clearTimeout(timer));
+    btn.addEventListener('pointerleave', () => clearTimeout(timer));
+  });
+}
+
+// Init sounds on page load
+loadSoundEffects();
+setupSoundLongPress();
 
 // ========================================
 // NETWORK INFO

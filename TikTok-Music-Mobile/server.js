@@ -259,7 +259,11 @@ app.use(cors());
 app.use(express.json());
 
 // Activation check middleware
+// *** ĐỔI THÀNH false ĐỂ BẬT LẠI LICENSE ***
+const BYPASS_LICENSE = true;
+
 app.use((req, res, next) => {
+  if (BYPASS_LICENSE) return next();
   const allowedPaths = [
     '/',
     '/index.html',

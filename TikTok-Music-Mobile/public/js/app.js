@@ -1281,30 +1281,29 @@ function addLog(type, status, data) {
     logDiv.className = 'chat-message';
     logDiv.innerHTML = `<span class="log-time">${timeStr}</span> <span class="username">${data.nickname}:</span> <span class="comment">${escapeHtml(data.comment)}</span>`;
     
-    // Auto-translate non-Vietnamese comments
+    // Auto-translate comments if setting is enabled
     if (systemConfig.chatTranslateEnabled && data.comment) {
-      const detected = detectLanguage(data.comment);
-      if (detected !== 'vi-VN') {
-        const transDiv = document.createElement('div');
-        transDiv.className = 'chat-translation';
-        transDiv.style.fontSize = '0.85em';
-        transDiv.style.color = 'var(--text-secondary)';
-        transDiv.style.marginTop = '2px';
-        transDiv.style.fontStyle = 'italic';
-        transDiv.innerHTML = `↳ Đang dịch...`;
-        logDiv.appendChild(transDiv);
-        
-        fetch(`/api/translate?text=${encodeURIComponent(data.comment)}`)
-          .then(res => res.json())
-          .then(resData => {
-            if (resData && resData.translatedText) {
-              transDiv.innerHTML = `↳ ${escapeHtml(resData.translatedText)}`;
-            } else {
-              transDiv.remove();
-            }
-          })
-          .catch(() => transDiv.remove());
-      }
+      const transDiv = document.createElement('div');
+      transDiv.className = 'chat-translation';
+      transDiv.style.fontSize = '0.85em';
+      transDiv.style.color = 'var(--text-secondary)';
+      transDiv.style.marginTop = '2px';
+      transDiv.style.fontStyle = 'italic';
+      transDiv.innerHTML = `↳ Đang dịch...`;
+      logDiv.appendChild(transDiv);
+      
+      fetch(`/api/translate?text=${encodeURIComponent(data.comment)}`)
+        .then(res => res.json())
+        .then(resData => {
+          if (resData && resData.translatedText) {
+            transDiv.innerHTML = `↳ ${escapeHtml(resData.translatedText)}`;
+          } else {
+            transDiv.innerHTML = `↳ (Không thể dịch)`;
+          }
+        })
+        .catch(() => {
+          transDiv.innerHTML = `↳ (Lỗi mạng khi dịch)`;
+        });
     }
   } else if (type === 'gift') {
     let giftIcon = '🎁';

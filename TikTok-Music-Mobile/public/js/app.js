@@ -473,6 +473,8 @@ function initSocket() {
     viewerCountEl.textContent = data.viewerCount;
   });
 
+  const recentlySpoken = new Set();
+  
   socket.on('chat', (data) => {
     addLog('chat', 'info', data);
     if (systemConfig.chatTtsEnabled && data.comment) {
@@ -482,7 +484,15 @@ function initSocket() {
         // Strip emojis from author name
         const rawName = data.nickname || data.uniqueId;
         const author = rawName.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji_Modifier_Base}\p{Emoji_Modifier}\p{Emoji_Component}\u200d\ufe0f\u20e3\u2600-\u27bf\u2300-\u23ff\u2b50\u2b55]/gu, '').trim() || rawName;
-        speakText(`${author}: ${comment}`);
+        
+        // Anti-spam: Only speak if not recently spoken (prevent duplicate reads)
+        const signature = `${data.uniqueId}:${comment}`;
+        if (!recentlySpoken.has(signature)) {
+          recentlySpoken.add(signature);
+          setTimeout(() => recentlySpoken.delete(signature), 15000); // 15s cooldown
+          
+          speakText(`${author}: ${comment}`);
+        }
       }
     }
   });

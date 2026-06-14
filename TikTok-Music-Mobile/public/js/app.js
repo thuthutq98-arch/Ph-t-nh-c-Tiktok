@@ -377,7 +377,7 @@ async function loadConfig() {
 
   // STEP 3: Apply to UI
   tiktokUsernameInput.value = systemConfig.tiktokUsername || '';
-  minCoinsInput.value = systemConfig.minGiftCoins || 1;
+  if (minCoinsInput) minCoinsInput.value = systemConfig.minGiftCoins || 1;
 
   const vol = systemConfig.volume !== undefined ? systemConfig.volume : 0.7;
   volumeSlider.value = vol;

@@ -631,6 +631,34 @@ app.post('/api/tiktok/mock-chat', (req, res) => {
   res.json({ success: true, event: evt });
 });
 
+// Translation API Proxy to avoid CORS/Adblocker issues on client
+app.get('/api/translate', (req, res) => {
+  const text = req.query.text;
+  if (!text) return res.json({ translatedText: '' });
+  
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q=${encodeURIComponent(text)}`;
+  
+  const https = require('https');
+  https.get(url, (response) => {
+    let data = '';
+    response.on('data', chunk => data += chunk);
+    response.on('end', () => {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed[0]) {
+          const translatedText = parsed[0].map(x => x[0] || '').join('');
+          return res.json({ translatedText });
+        }
+        res.json({ translatedText: '' });
+      } catch (e) {
+        res.json({ translatedText: '' });
+      }
+    });
+  }).on('error', () => {
+    res.json({ translatedText: '' });
+  });
+});
+
 // TikTok Connect (per room)
 app.post('/api/tiktok/connect', (req, res) => {
   const { username } = req.body;

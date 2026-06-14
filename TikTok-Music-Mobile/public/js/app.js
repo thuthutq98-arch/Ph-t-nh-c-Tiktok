@@ -1294,12 +1294,11 @@ function addLog(type, status, data) {
         transDiv.innerHTML = `↳ Đang dịch...`;
         logDiv.appendChild(transDiv);
         
-        fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q=${encodeURIComponent(data.comment)}`)
+        fetch(`/api/translate?text=${encodeURIComponent(data.comment)}`)
           .then(res => res.json())
           .then(resData => {
-            if (resData && resData[0]) {
-              const translatedText = resData[0].map(x => x[0]).join('');
-              transDiv.innerHTML = `↳ ${escapeHtml(translatedText)}`;
+            if (resData && resData.translatedText) {
+              transDiv.innerHTML = `↳ ${escapeHtml(resData.translatedText)}`;
             } else {
               transDiv.remove();
             }

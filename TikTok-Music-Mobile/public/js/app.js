@@ -160,6 +160,7 @@ const logContainer = document.getElementById('logContainer');
 
 const minCoinsInput = document.getElementById('minCoins');
 const chatTtsToggle = document.getElementById('chatTtsToggle');
+const chatTranslateToggle = document.getElementById('chatTranslateToggle');
 const obsOverlayUrlInput = document.getElementById('obsOverlayUrl');
 const copyUrlBtn = document.getElementById('copyUrlBtn');
 const licenseInfo = document.getElementById('licenseInfo');
@@ -387,6 +388,9 @@ async function loadConfig() {
 
   if (systemConfig.chatTtsEnabled) {
     chatTtsToggle.classList.add('active');
+  }
+  if (systemConfig.chatTranslateEnabled) {
+    chatTranslateToggle.classList.add('active');
   }
 
   systemConfig.giftMappings = systemConfig.giftMappings || {};
@@ -912,6 +916,15 @@ function setupEventListeners() {
     }
   });
 
+  // Chat Translate toggle
+  if (chatTranslateToggle) {
+    chatTranslateToggle.addEventListener('click', () => {
+      chatTranslateToggle.classList.toggle('active');
+      systemConfig.chatTranslateEnabled = chatTranslateToggle.classList.contains('active');
+      saveConfig();
+    });
+  }
+
   // TTS Language selector
   const ttsLangSelect = document.getElementById('ttsLang');
   if (ttsLangSelect) {
@@ -1267,6 +1280,33 @@ function addLog(type, status, data) {
   } else if (type === 'chat') {
     logDiv.className = 'chat-message';
     logDiv.innerHTML = `<span class="log-time">${timeStr}</span> <span class="username">${data.nickname}:</span> <span class="comment">${escapeHtml(data.comment)}</span>`;
+    
+    // Auto-translate non-Vietnamese comments
+    if (systemConfig.chatTranslateEnabled && data.comment) {
+      const detected = detectLanguage(data.comment);
+      if (detected !== 'vi-VN') {
+        const transDiv = document.createElement('div');
+        transDiv.className = 'chat-translation';
+        transDiv.style.fontSize = '0.85em';
+        transDiv.style.color = 'var(--text-secondary)';
+        transDiv.style.marginTop = '2px';
+        transDiv.style.fontStyle = 'italic';
+        transDiv.innerHTML = `↳ Đang dịch...`;
+        logDiv.appendChild(transDiv);
+        
+        fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q=${encodeURIComponent(data.comment)}`)
+          .then(res => res.json())
+          .then(resData => {
+            if (resData && resData[0]) {
+              const translatedText = resData[0].map(x => x[0]).join('');
+              transDiv.innerHTML = `↳ ${escapeHtml(translatedText)}`;
+            } else {
+              transDiv.remove();
+            }
+          })
+          .catch(() => transDiv.remove());
+      }
+    }
   } else if (type === 'gift') {
     let giftIcon = '🎁';
     const nameLower = data.giftName.toLowerCase();

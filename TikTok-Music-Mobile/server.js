@@ -194,8 +194,8 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 if (!fs.existsSync(MUSIC_DIR)) fs.mkdirSync(MUSIC_DIR, { recursive: true });
 
-// Sound effects directory
-const SOUNDS_DIR = path.join(__dirname, 'sounds');
+// Sound effects directory (use public/sounds so GitHub files work)
+const SOUNDS_DIR = path.join(__dirname, 'public', 'sounds');
 if (!fs.existsSync(SOUNDS_DIR)) fs.mkdirSync(SOUNDS_DIR, { recursive: true });
 
 const defaultConfig = {
@@ -276,6 +276,8 @@ app.use((req, res, next) => {
     req.path.startsWith('/socket.io') ||
     req.path.startsWith('/css/') ||
     req.path.startsWith('/js/') ||
+    req.path.startsWith('/sounds/') ||
+    req.path === '/api/sounds' ||
     req.path.endsWith('.ico') ||
     req.path.endsWith('.png') ||
     req.path.endsWith('.jpg') ||
@@ -302,7 +304,6 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC_DIR));
-app.use('/sounds', express.static(SOUNDS_DIR));
 
 // Multi-room system
 const rooms = new Map();

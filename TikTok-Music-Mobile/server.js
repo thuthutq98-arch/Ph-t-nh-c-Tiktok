@@ -194,6 +194,10 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 if (!fs.existsSync(MUSIC_DIR)) fs.mkdirSync(MUSIC_DIR, { recursive: true });
 
+// Sound effects directory
+const SOUNDS_DIR = path.join(__dirname, 'sounds');
+if (!fs.existsSync(SOUNDS_DIR)) fs.mkdirSync(SOUNDS_DIR, { recursive: true });
+
 const defaultConfig = {
   tiktokUsername: '',
   minGiftCoins: 1,
@@ -298,6 +302,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC_DIR));
+app.use('/sounds', express.static(SOUNDS_DIR));
 
 // Multi-room system
 const rooms = new Map();
@@ -436,6 +441,35 @@ app.get('/api/stats', (req, res) => {
     roomList,
     trial: { total: trialTotal, active: trialActive, expired: trialExpired }
   });
+});
+
+// --- SOUND EFFECTS UPLOAD ---
+const soundUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, SOUNDS_DIR),
+    filename: (req, file, cb) => {
+      const slot = req.body.slot || '1';
+      const names = { '1': 'vine-boom', '2': 'oi-doi-oi', '3': 'fart', '4': 'baby-laugh' };
+      cb(null, (names[slot] || 'sound' + slot) + '.mp3');
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    if (/\.(mp3|wav|ogg|m4a)$/i.test(file.originalname)) return cb(null, true);
+    cb(new Error('Chi chap nhan MP3, WAV, OGG, M4A!'));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+app.post('/api/upload-sound', soundUpload.single('sound'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Khong co file!' });
+  res.json({ success: true, filename: req.file.filename });
+});
+
+app.get('/api/sounds', (req, res) => {
+  try {
+    const files = fs.readdirSync(SOUNDS_DIR).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
+    res.json(files);
+  } catch(e) { res.json([]); }
 });
 
 app.post('/api/admin/generate-key', (req, res) => {

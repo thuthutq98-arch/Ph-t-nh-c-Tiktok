@@ -214,16 +214,39 @@
         </button>
       </div>
 
-      <!-- Mock Testing -->
+      <!-- Sound Effects Panel -->
       <div class="mock-panel glass">
-        <h4><i class="fa-solid fa-flask"></i> Chạy Thử Nghiệm</h4>
-        <p class="setting-help">Gửi quà/chat giả để test mà không cần live thật.</p>
-        <div class="mock-buttons">
-          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Hoa hồng', 1, 1)">🌹 1 Xu</button>
-          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Nước hoa', 1, 9)">🧪 9 Xu</button>
-          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Vương miện', 1, 99)">👑 99 Xu</button>
-          <button class="btn btn-outline btn-sm" onclick="triggerMockGift('Vũ trụ', 1, 299)">🪐 299 Xu</button>
-          <button class="btn btn-outline btn-sm" onclick="triggerMockChat()" style="border-color: var(--secondary-color); color: var(--secondary-color);">💬 Test Chat</button>
+        <h4><i class="fa-solid fa-volume-high"></i> Âm Thanh</h4>
+        <p class="setting-help">Bấm nút để phát hiệu ứng âm thanh trên Live.</p>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; padding: 8px 0;">
+          <!-- Sound Button 1 -->
+          <div style="text-align: center; cursor: pointer;" onclick="playSoundEffect(1)">
+            <div class="sound-btn sound-btn-red" id="soundBtn1">
+              <i class="fa-solid fa-explosion"></i>
+            </div>
+            <div class="sound-btn-label">VINE BOOM</div>
+          </div>
+          <!-- Sound Button 2 -->
+          <div style="text-align: center; cursor: pointer;" onclick="playSoundEffect(2)">
+            <div class="sound-btn sound-btn-orange" id="soundBtn2">
+              <i class="fa-solid fa-face-surprise"></i>
+            </div>
+            <div class="sound-btn-label">Ối Dồi Ôi</div>
+          </div>
+          <!-- Sound Button 3 -->
+          <div style="text-align: center; cursor: pointer;" onclick="playSoundEffect(3)">
+            <div class="sound-btn sound-btn-brown" id="soundBtn3">
+              <i class="fa-solid fa-wind"></i>
+            </div>
+            <div class="sound-btn-label">Fart</div>
+          </div>
+          <!-- Sound Button 4 -->
+          <div style="text-align: center; cursor: pointer;" onclick="playSoundEffect(4)">
+            <div class="sound-btn sound-btn-cyan" id="soundBtn4">
+              <i class="fa-solid fa-baby"></i>
+            </div>
+            <div class="sound-btn-label">Baby Laugh</div>
+          </div>
         </div>
       </div>
 

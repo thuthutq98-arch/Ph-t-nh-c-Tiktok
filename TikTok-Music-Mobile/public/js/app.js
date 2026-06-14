@@ -493,7 +493,7 @@ function initSocket() {
     // Auto-collect gift name for dropdown
     addKnownGift(data.giftName, data.diamondCount);
 
-    const minCoins = parseInt(minCoinsInput.value) || 1;
+    const minCoins = systemConfig.minGiftCoins || 1;
     const totalCoins = data.diamondCount * data.repeatCount;
 
     if (totalCoins < minCoins) {
@@ -885,10 +885,12 @@ function setupEventListeners() {
   });
 
   // Settings
-  minCoinsInput.addEventListener('change', (e) => {
-    systemConfig.minGiftCoins = parseInt(e.target.value) || 1;
-    saveConfig();
-  });
+  if (minCoinsInput) {
+    minCoinsInput.addEventListener('change', (e) => {
+      systemConfig.minGiftCoins = parseInt(e.target.value) || 1;
+      saveConfig();
+    });
+  }
 
   // Chat TTS toggle
   chatTtsToggle.addEventListener('click', () => {

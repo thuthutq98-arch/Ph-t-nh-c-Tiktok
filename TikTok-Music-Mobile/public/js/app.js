@@ -660,56 +660,90 @@ function isEmojiOnly(text) {
 // Detect language from text content
 function detectLanguage(text) {
   const clean = keepTextOnly(text);
-  
   // Vietnamese: has tone marks
   if (/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(clean)) {
     return 'vi-VN';
-  }
-  // Chinese characters
-  if (/[\u4e00-\u9fff\u3400-\u4dbf]/.test(clean)) {
-    return 'zh-CN';
-  }
-  // Japanese: Hiragana or Katakana
-  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(clean)) {
-    return 'ja-JP';
   }
   // Korean: Hangul
   if (/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(clean)) {
     return 'ko-KR';
   }
-  // Thai
-  if (/[\u0e00-\u0e7f]/.test(clean)) {
-    return 'th-TH';
+  // Japanese
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(clean)) {
+    return 'ja-JP';
   }
-  // Arabic
-  if (/[\u0600-\u06ff]/.test(clean)) {
-    return 'ar-SA';
+  // Chinese
+  if (/[\u4e00-\u9fff\u3400-\u4dbf]/.test(clean)) {
+    return 'zh-CN';
   }
-  // Russian/Cyrillic
-  if (/[\u0400-\u04ff]/.test(clean)) {
-    return 'ru-RU';
-  }
-  // Hindi/Devanagari
-  if (/[\u0900-\u097f]/.test(clean)) {
-    return 'hi-IN';
-  }
-  // Default: English for Latin characters
+  // Latin → English
   if (/[a-zA-Z]/.test(clean)) {
     return 'en-US';
   }
-  // Fallback
   return 'vi-VN';
 }
 
-function speakText(text, forceLang) {
+// Cache available voices
+let cachedVoices = [];
+function loadVoices() {
+  cachedVoices = window.speechSynthesis.getVoices();
+}
+if ('speechSynthesis' in window) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+// Find best voice for language
+function findBestVoice(lang) {
+  if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
+  
+  // Preferred voice names for each language
+  const preferred = {
+    'vi-VN': ['Google Tiếng Việt', 'Microsoft An', 'Microsoft HoaiMy', 'vi-VN'],
+    'en-US': ['Google US English', 'Microsoft David', 'Microsoft Zira', 'en-US', 'en-GB'],
+    'ko-KR': ['Google 한국의', 'Microsoft Heami', 'ko-KR', 'ko_KR']
+  };
+
+  const prefs = preferred[lang] || [lang];
+  
+  // Try exact name match first
+  for (const pref of prefs) {
+    const voice = cachedVoices.find(v => v.name.includes(pref));
+    if (voice) return voice;
+  }
+  
+  // Try lang code match
+  const langCode = lang.split('-')[0];
+  const byLang = cachedVoices.find(v => v.lang.startsWith(langCode));
+  if (byLang) return byLang;
+  
+  return null;
+}
+
+function speakText(text) {
   if (!('speechSynthesis' in window)) return;
   
-  // Strip ALL non-text characters (emojis, icons, symbols, stickers)
   const cleanText = keepTextOnly(text);
   if (!cleanText) return;
   
   const utterance = new SpeechSynthesisUtterance(cleanText);
-  utterance.lang = forceLang || detectLanguage(cleanText);
+  
+  // Get language from settings dropdown or auto-detect
+  const ttsLangSelect = document.getElementById('ttsLang');
+  const selectedLang = ttsLangSelect ? ttsLangSelect.value : 'vi-VN';
+  const detectedLang = detectLanguage(cleanText);
+  
+  // Use selected language, but auto-detect Korean/special chars
+  const finalLang = (detectedLang === 'ko-KR' || detectedLang === 'ja-JP' || detectedLang === 'zh-CN') 
+    ? detectedLang 
+    : selectedLang;
+  
+  utterance.lang = finalLang;
+  
+  // Find and set the best voice
+  const voice = findBestVoice(finalLang);
+  if (voice) utterance.voice = voice;
+  
   utterance.rate = systemConfig.ttsRate || 1.0;
   utterance.pitch = systemConfig.ttsPitch || 1.0;
   utterance.onerror = () => {};
@@ -865,6 +899,16 @@ function setupEventListeners() {
       window.speechSynthesis.cancel();
     }
   });
+
+  // TTS Language selector
+  const ttsLangSelect = document.getElementById('ttsLang');
+  if (ttsLangSelect) {
+    if (systemConfig.ttsLang) ttsLangSelect.value = systemConfig.ttsLang;
+    ttsLangSelect.addEventListener('change', () => {
+      systemConfig.ttsLang = ttsLangSelect.value;
+      saveConfig();
+    });
+  }
 
   // Copy OBS URL
   copyUrlBtn.addEventListener('click', () => {

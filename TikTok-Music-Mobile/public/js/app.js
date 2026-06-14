@@ -72,20 +72,21 @@ window.fetch = function(url, options) {
 };
 
 // Check license on page load (skip on activation/admin pages)
-if (!window.location.pathname.includes('activation.html') && !window.location.pathname.includes('admin-generator.html')) {
-  __originalFetch('/api/verify-license', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ deviceId: __deviceId, key: __licenseKey })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (!data.activated) {
-      window.location.href = '/activation.html?reason=' + (data.reason || 'not_activated');
-    }
-  })
-  .catch(e => console.error('License check error', e));
-}
+// *** TẮT TẠM THỜI - BẬT LẠI KHI CẦN LICENSE ***
+// if (!window.location.pathname.includes('activation.html') && !window.location.pathname.includes('admin-generator.html')) {
+//   __originalFetch('/api/verify-license', {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({ deviceId: __deviceId, key: __licenseKey })
+//   })
+//   .then(r => r.json())
+//   .then(data => {
+//     if (!data.activated) {
+//       window.location.href = '/activation.html?reason=' + (data.reason || 'not_activated');
+//     }
+//   })
+//   .catch(e => console.error('License check error', e));
+// }
 
 // === Multi-Room Support ===
 const urlParams = new URLSearchParams(window.location.search);

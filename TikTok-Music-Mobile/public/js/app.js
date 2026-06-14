@@ -1242,41 +1242,39 @@ function addLog(type, status, data) {
 }
 
 // ========================================
-// MOCK EVENTS (globally available)
+// SOUND EFFECTS (globally available)
 // ========================================
-window.triggerMockGift = async (giftName, count, diamondCount) => {
-  const userSeed = Math.floor(Math.random() * 1000);
-  try {
-    await fetch(roomUrl('/api/tiktok/mock-gift'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        giftName,
-        count,
-        diamondCount,
-        nickname: `Người xem ${userSeed}`,
-        uniqueId: `viewer_${userSeed}`,
-        room: currentRoom
-      })
-    });
-  } catch (e) {}
+const soundEffects = {};
+const soundNames = {
+  1: 'vine-boom',
+  2: 'oi-doi-oi',
+  3: 'fart',
+  4: 'baby-laugh'
 };
 
-window.triggerMockChat = async () => {
-  const userSeed = Math.floor(Math.random() * 1000);
-  const comments = ['Chào chủ phòng!', 'Nhạc hay quá', 'Chào mọi người', 'Xin chào', 'Nhạc cuốn quá'];
-  try {
-    await fetch(roomUrl('/api/tiktok/mock-chat'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nickname: `Người xem ${userSeed}`,
-        uniqueId: `viewer_${userSeed}`,
-        comment: comments[Math.floor(Math.random() * comments.length)],
-        room: currentRoom
-      })
-    });
-  } catch (e) {}
+// Pre-load sound files
+Object.entries(soundNames).forEach(([num, name]) => {
+  const audio = new Audio(`/sounds/${name}.mp3`);
+  audio.preload = 'auto';
+  soundEffects[num] = audio;
+});
+
+window.playSoundEffect = (num) => {
+  const audio = soundEffects[num];
+  if (!audio) return;
+
+  // Reset and play
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+
+  // Pulse animation on button
+  const btn = document.getElementById('soundBtn' + num);
+  if (btn) {
+    btn.classList.remove('playing');
+    void btn.offsetWidth; // force reflow
+    btn.classList.add('playing');
+    setTimeout(() => btn.classList.remove('playing'), 300);
+  }
 };
 
 // ========================================

@@ -744,13 +744,19 @@ function speakText(text) {
   
   // Get language from settings dropdown or auto-detect
   const ttsLangSelect = document.getElementById('ttsLang');
-  const selectedLang = ttsLangSelect ? ttsLangSelect.value : 'vi-VN';
+  const selectedLang = ttsLangSelect ? ttsLangSelect.value : 'auto';
   const detectedLang = detectLanguage(cleanText);
   
-  // Use selected language, but auto-detect Korean/special chars
-  const finalLang = (detectedLang === 'ko-KR' || detectedLang === 'ja-JP' || detectedLang === 'zh-CN') 
-    ? detectedLang 
-    : selectedLang;
+  let finalLang = selectedLang;
+  
+  if (selectedLang === 'auto') {
+    finalLang = detectedLang;
+  } else {
+    // If user forced a language, still auto-override for completely incompatible scripts
+    if (detectedLang === 'ko-KR' || detectedLang === 'ja-JP' || detectedLang === 'zh-CN') {
+      finalLang = detectedLang;
+    }
+  }
   
   utterance.lang = finalLang;
   

@@ -786,7 +786,38 @@ function speakText(text) {
   utterance.rate = systemConfig.ttsRate || 1.0;
   utterance.pitch = systemConfig.ttsPitch || 1.0;
   utterance.onerror = () => {};
+  
+  // Chrome bug workaround: speechSynthesis can get stuck in paused state
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+  }
+  
   window.speechSynthesis.speak(utterance);
+}
+
+// Unlock TTS on mobile browsers (must be called from user interaction)
+function unlockTTS() {
+  if (!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance('');
+  u.volume = 0;
+  u.rate = 10;
+  window.speechSynthesis.speak(u);
+}
+
+// Chrome bug: speechSynthesis stops after ~15s inactivity. Keep it alive.
+if ('speechSynthesis' in window) {
+  setInterval(() => {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  }, 10000);
+  
+  // Re-unlock when user returns to the tab
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && (systemConfig.chatTtsEnabled || systemConfig.autoGreetEnabled)) {
+      unlockTTS();
+    }
+  });
 }
 
 // ========================================
@@ -936,7 +967,11 @@ function setupEventListeners() {
     chatTtsToggle.classList.toggle('active');
     systemConfig.chatTtsEnabled = chatTtsToggle.classList.contains('active');
     saveConfig();
-    if (!systemConfig.chatTtsEnabled && 'speechSynthesis' in window) {
+    if (systemConfig.chatTtsEnabled) {
+      // Unlock TTS on mobile + speak confirmation
+      unlockTTS();
+      setTimeout(() => speakText('Đã bật đọc bình luận'), 200);
+    } else if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
   });
@@ -956,6 +991,10 @@ function setupEventListeners() {
       autoGreetToggle.classList.toggle('active');
       systemConfig.autoGreetEnabled = autoGreetToggle.classList.contains('active');
       saveConfig();
+      if (systemConfig.autoGreetEnabled) {
+        unlockTTS();
+        setTimeout(() => speakText('Đã bật chào mừng tự động'), 200);
+      }
     });
   }
 

@@ -161,6 +161,8 @@ const logContainer = document.getElementById('logContainer');
 const minCoinsInput = document.getElementById('minCoins');
 const chatTtsToggle = document.getElementById('chatTtsToggle');
 const chatTranslateToggle = document.getElementById('chatTranslateToggle');
+const autoGreetToggle = document.getElementById('autoGreetToggle');
+const greetTemplateInput = document.getElementById('greetTemplate');
 const obsOverlayUrlInput = document.getElementById('obsOverlayUrl');
 const copyUrlBtn = document.getElementById('copyUrlBtn');
 const licenseInfo = document.getElementById('licenseInfo');
@@ -392,6 +394,12 @@ async function loadConfig() {
   if (systemConfig.chatTranslateEnabled) {
     chatTranslateToggle.classList.add('active');
   }
+  if (systemConfig.autoGreetEnabled && autoGreetToggle) {
+    autoGreetToggle.classList.add('active');
+  }
+  if (systemConfig.greetTemplate && greetTemplateInput) {
+    greetTemplateInput.value = systemConfig.greetTemplate;
+  }
 
   systemConfig.giftMappings = systemConfig.giftMappings || {};
   renderMappingList();
@@ -498,6 +506,17 @@ function initSocket() {
           speakText(`${author}: ${comment}`);
         }
       }
+    }
+  });
+
+  // Member join (auto-greeting)
+  socket.on('member-join', (data) => {
+    addLog('system', 'info', `👋 ${data.nickname} (@${data.uniqueId}) vừa vào phòng`);
+    
+    if (systemConfig.autoGreetEnabled) {
+      const template = systemConfig.greetTemplate || 'Chào mừng {name} đến phòng live!';
+      const greetMsg = template.replace(/\{name\}/g, data.nickname || data.uniqueId);
+      speakText(greetMsg);
     }
   });
 
@@ -927,6 +946,23 @@ function setupEventListeners() {
     chatTranslateToggle.addEventListener('click', () => {
       chatTranslateToggle.classList.toggle('active');
       systemConfig.chatTranslateEnabled = chatTranslateToggle.classList.contains('active');
+      saveConfig();
+    });
+  }
+
+  // Auto Greet toggle
+  if (autoGreetToggle) {
+    autoGreetToggle.addEventListener('click', () => {
+      autoGreetToggle.classList.toggle('active');
+      systemConfig.autoGreetEnabled = autoGreetToggle.classList.contains('active');
+      saveConfig();
+    });
+  }
+
+  // Greet template input
+  if (greetTemplateInput) {
+    greetTemplateInput.addEventListener('change', () => {
+      systemConfig.greetTemplate = greetTemplateInput.value;
       saveConfig();
     });
   }

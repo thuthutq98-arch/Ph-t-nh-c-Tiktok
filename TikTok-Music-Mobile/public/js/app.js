@@ -509,17 +509,6 @@ function initSocket() {
     }
   });
 
-  // Member join (auto-greeting)
-  socket.on('member-join', (data) => {
-    addLog('system', 'info', `👋 ${data.nickname} (@${data.uniqueId}) vừa vào phòng`);
-    
-    if (systemConfig.autoGreetEnabled) {
-      const template = systemConfig.greetTemplate || 'Chào mừng {name} đến phòng live!';
-      const greetMsg = template.replace(/\{name\}/g, data.nickname || data.uniqueId);
-      speakText(greetMsg);
-    }
-  });
-
   socket.on('gift', (data) => {
     addLog('gift', 'success', data);
 

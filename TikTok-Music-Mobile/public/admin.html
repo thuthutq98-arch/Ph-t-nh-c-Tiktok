@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Thống Kê Chi Tiết</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0b0c15;
+      color: #f1f3f9;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 { color: #00f2fe; margin-bottom: 20px; font-size: 1.4rem; }
+    h2 { color: #ff0050; margin: 20px 0 10px; font-size: 1.1rem; }
+    .login-box {
+      max-width: 400px;
+      margin: 60px auto;
+      background: rgba(18,20,38,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 30px;
+      text-align: center;
+    }
+    .login-box h1 { margin-bottom: 10px; }
+    .login-box p { color: #9aa0b9; font-size: 0.85rem; margin-bottom: 20px; }
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      color: white;
+      font-size: 1rem;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    input[type="password"]:focus { border-color: #00f2fe; }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #ff0050, #ff4081);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    .error { color: #ff3d00; font-size: 0.85rem; margin-top: 10px; }
+    .dashboard { display: none; max-width: 700px; margin: 0 auto; }
+    .stat-cards { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .stat-card {
+      flex: 1; min-width: 100px;
+      background: rgba(18,20,38,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 1.8rem; font-weight: 700; color: #00f2fe; }
+    .stat-card .label { font-size: 0.7rem; color: #9aa0b9; margin-top: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(18,20,38,0.5);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    th { background: rgba(0,242,254,0.1); color: #00f2fe; text-align: left; padding: 10px 12px; font-size: 0.8rem; }
+    td { padding: 8px 12px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #ccc; }
+    .badge-live { background: #00e676; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+    .badge-off { background: rgba(255,255,255,0.1); color: #9aa0b9; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+    .badge-active { background: rgba(0,230,118,0.15); color: #00e676; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+    .badge-expired { background: rgba(255,61,0,0.15); color: #ff3d00; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+    .refresh-btn {
+      width: auto; padding: 8px 20px; margin-bottom: 20px;
+      background: rgba(0,242,254,0.1); border: 1px solid rgba(0,242,254,0.3);
+      font-size: 0.85rem; color: #00f2fe;
+    }
+    .auto-note { color: #9aa0b9; font-size: 0.75rem; margin-left: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- Login -->
+  <div class="login-box" id="loginBox">
+    <h1>🔐 Admin Panel</h1>
+    <p>Nhập mật khẩu admin để xem thống kê chi tiết</p>
+    <input type="password" id="adminPass" placeholder="Mật khẩu admin...">
+    <button onclick="doLogin()">Đăng Nhập</button>
+    <div class="error" id="loginError"></div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
+    <h1>📊 Admin Dashboard</h1>
+    <button class="refresh-btn" onclick="loadData()">🔄 Làm mới</button>
+    <span class="auto-note">Tự động cập nhật mỗi 15 giây</span>
+
+    <div class="stat-cards" id="statCards"></div>
+
+    <h2>🏠 Phòng đang hoạt động</h2>
+    <table>
+      <thead><tr><th>Tên phòng</th><th>Số người</th><th>TikTok Live</th></tr></thead>
+      <tbody id="roomTable"><tr><td colspan="3">Đang tải...</td></tr></tbody>
+    </table>
+
+    <h2>📱 Thiết bị đã dùng thử</h2>
+    <table>
+      <thead><tr><th>Device ID</th><th>Ngày bắt đầu</th><th>Ngày hết hạn</th><th>Trạng thái</th></tr></thead>
+      <tbody id="deviceTable"><tr><td colspan="4">Đang tải...</td></tr></tbody>
+    </table>
+  </div>
+
+  <script>
+    let savedPass = '';
+
+    async function doLogin() {
+      const pass = document.getElementById('adminPass').value;
+      if (!pass) return;
+      try {
+        const res = await fetch('/api/admin/stats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
+        if (!res.ok) {
+          document.getElementById('loginError').textContent = 'Sai mật khẩu!';
+          return;
+        }
+        savedPass = pass;
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        loadData();
+        setInterval(loadData, 15000);
+      } catch(e) {
+        document.getElementById('loginError').textContent = 'Lỗi kết nối server!';
+      }
+    }
+
+    // Enter key to login
+    document.getElementById('adminPass').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    async function loadData() {
+      try {
+        const res = await fetch('/api/admin/stats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: savedPass })
+        });
+        const data = await res.json();
+
+        // Stat cards
+        document.getElementById('statCards').innerHTML = `
+          <div class="stat-card"><div class="num">${data.online}</div><div class="label">Đang Online</div></div>
+          <div class="stat-card"><div class="num">${data.rooms}</div><div class="label">Phòng</div></div>
+          <div class="stat-card"><div class="num">${data.trial.active}</div><div class="label">Đang dùng thử</div></div>
+          <div class="stat-card"><div class="num">${data.trial.expired}</div><div class="label">Đã hết hạn</div></div>
+        `;
+
+        // Room table
+        if (data.roomList && data.roomList.length > 0) {
+          document.getElementById('roomTable').innerHTML = data.roomList.map(r => `
+            <tr>
+              <td>@${r.name}</td>
+              <td>${r.clients} người</td>
+              <td>${r.tiktokConnected ? '<span class="badge-live">● LIVE</span>' : '<span class="badge-off">Offline</span>'}</td>
+            </tr>
+          `).join('');
+        } else {
+          document.getElementById('roomTable').innerHTML = '<tr><td colspan="3" style="color:#9aa0b9">Không có phòng nào</td></tr>';
+        }
+
+        // Device table
+        if (data.deviceList && data.deviceList.length > 0) {
+          document.getElementById('deviceTable').innerHTML = data.deviceList.map(d => `
+            <tr>
+              <td style="font-family:monospace;font-size:0.75rem">${d.deviceId}</td>
+              <td>${d.startDate}</td>
+              <td>${d.expiryDate}</td>
+              <td>${d.expired ? '<span class="badge-expired">Hết hạn</span>' : '<span class="badge-active">Đang dùng</span>'}</td>
+            </tr>
+          `).join('');
+        } else {
+          document.getElementById('deviceTable').innerHTML = '<tr><td colspan="4" style="color:#9aa0b9">Chưa có thiết bị nào</td></tr>';
+        }
+      } catch(e) {}
+    }
+  </script>
+</body>
+</html>

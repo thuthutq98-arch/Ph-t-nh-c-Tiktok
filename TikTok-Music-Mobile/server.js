@@ -417,18 +417,10 @@ app.post('/api/activate', (req, res) => {
   res.status(400).json({ error: 'Mã kích hoạt không chính xác hoặc đã hết hạn!' });
 });
 
-// --- STATS API ---
+// --- STATS API (Public - only shows numbers) ---
 app.get('/api/stats', (req, res) => {
   const onlineCount = io.engine.clientCount || 0;
   const roomCount = rooms.size;
-  const roomList = [];
-  rooms.forEach((room, id) => {
-    roomList.push({
-      name: id,
-      clients: room.clients ? room.clients.size : 0,
-      tiktokConnected: room.tiktokConnected || false
-    });
-  });
 
   // Trial stats
   const trialUsed = loadTrialUsed();
@@ -443,8 +435,47 @@ app.get('/api/stats', (req, res) => {
   res.json({
     online: onlineCount,
     rooms: roomCount,
-    roomList,
     trial: { total: trialTotal, active: trialActive, expired: trialExpired }
+  });
+});
+
+// --- STATS ADMIN (Chi tiết - chỉ admin xem được) ---
+app.post('/api/admin/stats', (req, res) => {
+  const { password } = req.body;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  if (password !== adminPassword) {
+    return res.status(401).json({ error: 'Sai mật khẩu admin!' });
+  }
+
+  const onlineCount = io.engine.clientCount || 0;
+  const roomCount = rooms.size;
+  const roomList = [];
+  rooms.forEach((room, id) => {
+    roomList.push({
+      name: id,
+      clients: room.clients ? room.clients.size : 0,
+      tiktokConnected: room.connectionStatus === 'connected'
+    });
+  });
+
+  const trialUsed = loadTrialUsed();
+  const today = getTodayStr();
+  let trialTotal = 0, trialActive = 0, trialExpired = 0;
+  const deviceList = [];
+  Object.entries(trialUsed).forEach(([deviceId, t]) => {
+    trialTotal++;
+    const isExpired = today > t.expiryDate;
+    if (isExpired) trialExpired++;
+    else trialActive++;
+    deviceList.push({ deviceId, startDate: t.startDate, expiryDate: t.expiryDate, expired: isExpired });
+  });
+
+  res.json({
+    online: onlineCount,
+    rooms: roomCount,
+    roomList,
+    trial: { total: trialTotal, active: trialActive, expired: trialExpired },
+    deviceList
   });
 });
 

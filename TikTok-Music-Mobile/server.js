@@ -714,20 +714,6 @@ app.post('/api/tiktok/connect', (req, res) => {
       io.to(roomId).emit('chat', { nickname, uniqueId, comment: data.comment, profilePictureUrl });
     });
 
-    // MEMBER JOIN event (người mới vào phòng)
-    room.tiktokConnection.on(WebcastEvent.MEMBER, data => {
-      const uniqueId = data.user ? data.user.uniqueId : (data.uniqueId || 'user');
-      const nickname = data.user ? data.user.nickname : (data.nickname || 'Người xem');
-      const profilePictureUrl = (data.user && data.user.avatarThumb && data.user.avatarThumb.mUrls) ? data.user.avatarThumb.mUrls[0] : null;
-      
-      // Only greet each user once per session
-      if (!room.greetedUsers) room.greetedUsers = new Set();
-      if (!room.greetedUsers.has(uniqueId)) {
-        room.greetedUsers.add(uniqueId);
-        io.to(roomId).emit('member-join', { nickname, uniqueId, profilePictureUrl });
-      }
-    });
-
     // Viewer count
     room.tiktokConnection.on(WebcastEvent.ROOM_USER, data => {
       io.to(roomId).emit('viewer-count', { viewerCount: data.viewerCount });

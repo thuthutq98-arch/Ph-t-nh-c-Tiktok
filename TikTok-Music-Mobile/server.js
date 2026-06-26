@@ -186,13 +186,15 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
 const PORT = process.env.PORT || 3000;
-// Auto-detect music folder (handles both 'Music' and 'music')
+// Auto-detect music folder
+// Priority: Persistent Disk path > 'Music' > 'music' (inside project)
+const PERSISTENT_MUSIC = path.join(__dirname, 'public', 'music');
 const MUSIC_DIR = fs.existsSync(path.join(__dirname, 'Music'))
   ? path.join(__dirname, 'Music')
-  : path.join(__dirname, 'music');
-const CONFIG_FILE = path.join(__dirname, 'config.json');
+  : PERSISTENT_MUSIC;
 
 if (!fs.existsSync(MUSIC_DIR)) fs.mkdirSync(MUSIC_DIR, { recursive: true });
+const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 // Sound effects directory (use public/sounds so GitHub files work)
 const SOUNDS_DIR = path.join(__dirname, 'public', 'sounds');
@@ -855,4 +857,13 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`║  📁 Thư mục nhạc: ${MUSIC_DIR}  ║`);
   console.log('╚════════════════════════════════════════════════╝\n');
   console.log('  ✅ Server sẵn sàng. Mở Chrome Android và truy cập URL trên!\n');
+  
+  // Debug: list music files
+  try {
+    const musicFiles = fs.readdirSync(MUSIC_DIR);
+    console.log(`  📁 MUSIC_DIR = ${MUSIC_DIR}`);
+    console.log(`  🎵 Tìm thấy ${musicFiles.length} file: ${musicFiles.join(', ') || '(trống)'}`);
+  } catch(e) {
+    console.log(`  ⚠️ Không thể đọc thư mục nhạc: ${e.message}`);
+  }
 });

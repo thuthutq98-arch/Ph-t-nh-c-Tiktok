@@ -513,7 +513,14 @@ function initSocket() {
       return;
     }
 
-    queueNextSong(data);
+    // Queue song based on repeat count (x1 = 1 bài, x3 = 3 bài, ...)
+    const repeatCount = data.repeatCount || 1;
+    for (let i = 0; i < repeatCount; i++) {
+      queueNextSong(data);
+    }
+    if (repeatCount > 1) {
+      addLog('system', 'info', `🎁 x${repeatCount} → Thêm ${repeatCount} bài vào hàng đợi`);
+    }
   });
 }
 

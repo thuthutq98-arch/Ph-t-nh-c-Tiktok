@@ -186,14 +186,23 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
 const PORT = process.env.PORT || 3000;
-// Auto-detect music folder
-// Priority: Persistent Disk path > 'Music' > 'music' (inside project)
-const PERSISTENT_MUSIC = path.join(__dirname, 'public', 'music');
-const MUSIC_DIR = fs.existsSync(path.join(__dirname, 'Music'))
-  ? path.join(__dirname, 'Music')
-  : PERSISTENT_MUSIC;
-
+// Music directory: Always use public/music (Persistent Disk on Render)
+// On first boot, auto-copy from GitHub 'Music' folder if public/music is empty
+const MUSIC_DIR = path.join(__dirname, 'public', 'music');
 if (!fs.existsSync(MUSIC_DIR)) fs.mkdirSync(MUSIC_DIR, { recursive: true });
+
+// Auto-seed: Copy from GitHub Music folder on first boot
+const GITHUB_MUSIC = path.join(__dirname, 'Music');
+if (fs.existsSync(GITHUB_MUSIC)) {
+  const diskFiles = fs.readdirSync(MUSIC_DIR).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
+  if (diskFiles.length === 0) {
+    const srcFiles = fs.readdirSync(GITHUB_MUSIC).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
+    srcFiles.forEach(f => {
+      try { fs.copyFileSync(path.join(GITHUB_MUSIC, f), path.join(MUSIC_DIR, f)); } catch(e) {}
+    });
+    console.log(`  📋 Đã copy ${srcFiles.length} bài từ GitHub/Music → public/music`);
+  }
+}
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 // Sound effects directory (use public/sounds so GitHub files work)

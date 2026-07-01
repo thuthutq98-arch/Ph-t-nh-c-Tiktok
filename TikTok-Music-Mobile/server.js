@@ -320,6 +320,25 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC_DIR));
 
+// Debug: Check music directory (temporary)
+app.get('/api/debug-music', (req, res) => {
+  try {
+    const files = fs.readdirSync(MUSIC_DIR).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
+    const githubExists = fs.existsSync(path.join(__dirname, 'Music'));
+    const githubFiles = githubExists ? fs.readdirSync(path.join(__dirname, 'Music')).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f)) : [];
+    res.json({
+      musicDir: MUSIC_DIR,
+      musicDirExists: fs.existsSync(MUSIC_DIR),
+      filesInMusicDir: files,
+      filesCount: files.length,
+      githubMusicExists: githubExists,
+      githubMusicFiles: githubFiles
+    });
+  } catch(e) {
+    res.json({ error: e.message, musicDir: MUSIC_DIR });
+  }
+});
+
 // Multi-room system
 const rooms = new Map();
 const ROOM_TIMEOUT = 30 * 60 * 1000; // 30 minutes

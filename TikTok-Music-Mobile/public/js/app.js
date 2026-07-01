@@ -115,6 +115,8 @@ let systemConfig = {
   ttsRate: 1.0,
   ttsPitch: 1.0,
   chatTtsEnabled: false,
+  giftTtsEnabled: false,
+  giftTtsLang: 'en',
   playlist: [],
   autoPlay: true,
   giftMappings: {}
@@ -555,6 +557,38 @@ function initSocket() {
     if (repeatCount > 1) {
       addLog('system', 'info', `🎁 x${repeatCount} → Thêm ${repeatCount} bài vào hàng đợi`);
     }
+
+    // Gift TTS announcement
+    if (systemConfig.giftTtsEnabled) {
+      const nickname = data.nickname || data.uniqueId;
+      const count = data.repeatCount || 1;
+      const giftName = data.giftName || 'gift';
+      const lang = systemConfig.giftTtsLang || 'en';
+      
+      let ttsMsg;
+      let ttsLang;
+      if (lang === 'vi') {
+        ttsMsg = `${nickname} tặng bạn ${count} ${giftName}`;
+        ttsLang = 'vi-VN';
+      } else {
+        const plural = count > 1 ? 's' : '';
+        ttsMsg = `${nickname} gifted you ${count} ${giftName}${plural}`;
+        ttsLang = 'en-US';
+      }
+      
+      const synth = window.speechSynthesis;
+      if (synth) {
+        const utter = new SpeechSynthesisUtterance(ttsMsg);
+        utter.lang = ttsLang;
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+        utter.volume = 1.0;
+        const voices = synth.getVoices();
+        const matchVoice = voices.find(v => v.lang.startsWith(lang === 'vi' ? 'vi' : 'en'));
+        if (matchVoice) utter.voice = matchVoice;
+        synth.speak(utter);
+      }
+    }
   });
 }
 
@@ -834,7 +868,7 @@ if ('speechSynthesis' in window) {
   
   // Re-unlock when user returns to the tab
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && (systemConfig.chatTtsEnabled || systemConfig.autoGreetEnabled)) {
+    if (!document.hidden && (systemConfig.chatTtsEnabled || systemConfig.giftTtsEnabled)) {
       unlockTTS();
     }
   });
@@ -995,6 +1029,43 @@ function setupEventListeners() {
       window.speechSynthesis.cancel();
     }
   });
+
+  // Gift TTS toggle
+  const giftTtsToggle = document.getElementById('giftTtsToggle');
+  if (giftTtsToggle) {
+    if (systemConfig.giftTtsEnabled) giftTtsToggle.classList.add('active');
+    giftTtsToggle.addEventListener('click', () => {
+      giftTtsToggle.classList.toggle('active');
+      systemConfig.giftTtsEnabled = giftTtsToggle.classList.contains('active');
+      saveConfig();
+      if (systemConfig.giftTtsEnabled) {
+        unlockTTS();
+        // Confirm in English since gift TTS is English
+        setTimeout(() => {
+          const synth = window.speechSynthesis;
+          if (synth) {
+            const utter = new SpeechSynthesisUtterance('Gift announcements enabled');
+            utter.lang = 'en-US';
+            utter.rate = 1.0;
+            const voices = synth.getVoices();
+            const enVoice = voices.find(v => v.lang.startsWith('en'));
+            if (enVoice) utter.voice = enVoice;
+            synth.speak(utter);
+          }
+        }, 200);
+      }
+    });
+  }
+
+  // Gift TTS language selector
+  const giftTtsLang = document.getElementById('giftTtsLang');
+  if (giftTtsLang) {
+    giftTtsLang.value = systemConfig.giftTtsLang || 'en';
+    giftTtsLang.addEventListener('change', (e) => {
+      systemConfig.giftTtsLang = e.target.value;
+      saveConfig();
+    });
+  }
 
   // Chat Translate toggle
   if (chatTranslateToggle) {

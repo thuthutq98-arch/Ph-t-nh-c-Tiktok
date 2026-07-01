@@ -176,23 +176,52 @@ const customGiftGroup = document.getElementById('customGiftGroup');
 const customGiftInput = document.getElementById('customGiftInput');
 
 // === Known Gifts System ===
-// Pre-built common TikTok gifts (English API name → Vietnamese label + diamond)
+// Pre-built common TikTok gifts with icons
+const GIFT_ICONS = {
+  'rose': '🌹', 'gg': '🎮', 'ice cream cone': '🍦', 'finger heart': '🫰',
+  'doughnut': '🍩', 'hand heart': '🫶', 'perfume': '🧴', 'little crown': '👑',
+  'galaxy': '🌌', 'lucky pig': '🐷', 'confetti': '🎊', 'paper crane': '🦢',
+  'tiktok': '🎵', 'love you': '❤️', 'cap': '🧢', 'heart me': '💖',
+  'sunglasses': '🕶️', 'rainbow': '🌈', 'star': '⭐', 'cat': '🐱',
+  'lion': '🦁', 'bear': '🐻', 'penguin': '🐧', 'butterfly': '🦋',
+  'diamond': '💎', 'money gun': '💰', 'fireworks': '🎆', 'trophy': '🏆',
+  'drums': '🥁', 'guitar': '🎸', 'microphone': '🎤', 'gift box': '🎁',
+  'cake': '🎂', 'heart': '❤️', 'kiss': '💋', 'flower': '🌸',
+  'crown': '👑', 'fire': '🔥', 'rocket': '🚀', 'bomb': '💣',
+  'thunder': '⚡', 'soccer': '⚽', 'basketball': '🏀', 'football': '🏈',
+  'muscle': '💪', 'clap': '👏', 'thumbs up': '👍', 'wink': '😉',
+  'rosa': '🌹', 'hat': '🎩', 'sunflower': '🌻', 'tulip': '🌷',
+  'dolphin': '🐬', 'unicorn': '🦄', 'panda': '🐼', 'koala': '🐨',
+  'chick': '🐥', 'swan': '🦢', 'love': '💕',
+};
+
+function getGiftIcon(giftName) {
+  const lower = (giftName || '').toLowerCase();
+  if (GIFT_ICONS[lower]) return GIFT_ICONS[lower];
+  // Partial match
+  for (const [key, icon] of Object.entries(GIFT_ICONS)) {
+    if (lower.includes(key) || key.includes(lower)) return icon;
+  }
+  return '🎁';
+}
+
 const DEFAULT_GIFTS = [
-  { name: 'Rose', label: 'Hoa hồng (Rose)', diamonds: 1 },
-  { name: 'GG', label: 'GG', diamonds: 1 },
-  { name: 'Ice Cream Cone', label: 'Kem ốc quế (Ice Cream)', diamonds: 1 },
-  { name: 'Finger Heart', label: 'Tim ngón tay (Finger Heart)', diamonds: 5 },
-  { name: 'Doughnut', label: 'Bánh Donut', diamonds: 30 },
-  { name: 'Hand Heart', label: 'Tim tay (Hand Heart)', diamonds: 10 },
-  { name: 'Perfume', label: 'Nước hoa (Perfume)', diamonds: 20 },
-  { name: 'Little Crown', label: 'Vương miện nhỏ (Little Crown)', diamonds: 99 },
-  { name: 'Galaxy', label: 'Thiên hà (Galaxy)', diamonds: 1000 },
-  { name: 'lucky pig', label: 'Heo may mắn (Lucky Pig)', diamonds: 1 },
-  { name: 'Confetti', label: 'Hoa giấy (Confetti)', diamonds: 100 },
-  { name: 'Paper Crane', label: 'Hạc giấy (Paper Crane)', diamonds: 1 },
-  { name: 'TikTok', label: 'TikTok', diamonds: 1 },
-  { name: 'Love you', label: 'Yêu bạn (Love You)', diamonds: 25 },
-  { name: 'Cap', label: 'Mũ lưỡi trai (Cap)', diamonds: 99 },
+  { name: 'Rose', label: '🌹 Rose (Hoa hồng)', diamonds: 1 },
+  { name: 'GG', label: '🎮 GG', diamonds: 1 },
+  { name: 'Ice Cream Cone', label: '🍦 Ice Cream (Kem ốc quế)', diamonds: 1 },
+  { name: 'Finger Heart', label: '🫰 Finger Heart (Tim ngón tay)', diamonds: 5 },
+  { name: 'Doughnut', label: '🍩 Doughnut (Bánh Donut)', diamonds: 30 },
+  { name: 'Hand Heart', label: '🫶 Hand Heart (Tim tay)', diamonds: 10 },
+  { name: 'Perfume', label: '🧴 Perfume (Nước hoa)', diamonds: 20 },
+  { name: 'Little Crown', label: '👑 Little Crown (Vương miện nhỏ)', diamonds: 99 },
+  { name: 'Galaxy', label: '🌌 Galaxy (Thiên hà)', diamonds: 1000 },
+  { name: 'lucky pig', label: '🐷 Lucky Pig (Heo may mắn)', diamonds: 1 },
+  { name: 'Confetti', label: '🎊 Confetti (Hoa giấy)', diamonds: 100 },
+  { name: 'Paper Crane', label: '🦢 Paper Crane (Hạc giấy)', diamonds: 1 },
+  { name: 'TikTok', label: '🎵 TikTok', diamonds: 1 },
+  { name: 'Love you', label: '❤️ Love You (Yêu bạn)', diamonds: 25 },
+  { name: 'Cap', label: '🧢 Cap (Mũ lưỡi trai)', diamonds: 99 },
+  { name: 'Heart Me', label: '💖 Heart Me', diamonds: 5 },
 ];
 
 let knownGifts = []; // { name, label, diamonds }
@@ -204,8 +233,12 @@ function loadKnownGifts() {
   } catch(e) {}
   // Merge defaults (avoid duplicates)
   DEFAULT_GIFTS.forEach(dg => {
-    if (!knownGifts.find(kg => kg.name.toLowerCase() === dg.name.toLowerCase())) {
+    const existing = knownGifts.find(kg => kg.name.toLowerCase() === dg.name.toLowerCase());
+    if (!existing) {
       knownGifts.push(dg);
+    } else if (!existing.label || !existing.label.match(/[\u{1F300}-\u{1FAFF}]/u)) {
+      // Update old entries without icons
+      existing.label = dg.label;
     }
   });
 }
@@ -218,7 +251,8 @@ function addKnownGift(name, diamonds) {
   if (!name) return;
   const existing = knownGifts.find(g => g.name.toLowerCase() === name.toLowerCase());
   if (!existing) {
-    knownGifts.push({ name, label: name + (diamonds ? ` (${diamonds}💎)` : ''), diamonds: diamonds || 0 });
+    const icon = getGiftIcon(name);
+    knownGifts.push({ name, label: `${icon} ${name}` + (diamonds ? ` (${diamonds}💎)` : ''), diamonds: diamonds || 0 });
     saveKnownGifts();
     renderGiftDropdown();
   }
@@ -1252,9 +1286,10 @@ function renderMappingList() {
 
     const card = document.createElement('div');
     card.className = 'song-card';
+    const giftIcon = getGiftIcon(giftName);
     card.innerHTML = `
       <div class="song-details">
-        <i class="fa-solid fa-gift song-icon" style="color: var(--primary-color);"></i>
+        <span class="song-icon" style="font-size: 1.4rem;">${giftIcon}</span>
         <div class="song-meta">
           <div class="song-title-text">${giftName}</div>
           <div class="song-size-text" style="color: var(--secondary-color);">➔ ${songName}</div>

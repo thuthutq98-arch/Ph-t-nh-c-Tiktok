@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tiktok-music-v18';
+const CACHE_NAME = 'tiktok-music-v19';
 const ASSETS = [
   '/',
   '/index.html',

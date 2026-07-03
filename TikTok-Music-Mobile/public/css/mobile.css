@@ -1314,99 +1314,167 @@ a {
   100% { transform: scale(1); }
 }
 
-/* ---------- Trim Panel ---------- */
+/* ---------- Trim Panel (Live Player) ---------- */
 .trim-panel {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px;
   margin-top: 8px;
-  background: rgba(0, 242, 254, 0.05);
-  border-top: 1px solid rgba(0, 242, 254, 0.15);
+  background: rgba(0, 242, 254, 0.04);
+  border-top: 1px solid rgba(0, 242, 254, 0.12);
   border-radius: 0 0 12px 12px;
 }
 
-.trim-controls {
+.trim-player-row {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
 }
 
-.trim-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.trim-field label {
-  display: block;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  margin-bottom: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.trim-input {
-  width: 100% !important;
-  padding: 6px 8px !important;
-  font-size: 0.85rem !important;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(0, 242, 254, 0.2) !important;
-  border-radius: 8px !important;
-  color: var(--text-primary) !important;
-  font-family: 'Outfit', monospace;
-}
-
-.trim-input:focus {
-  border-color: var(--secondary-color) !important;
-  outline: none;
-  box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
-}
-
-.trim-arrow {
-  color: var(--secondary-color);
-  font-size: 1.1rem;
-  padding-bottom: 6px;
-  flex-shrink: 0;
-}
-
-.btn-trim-save {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+.btn-trim-play {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   border: none;
-  background: var(--success-color);
+  background: var(--secondary-color);
   color: #000;
   font-size: 0.85rem;
   cursor: pointer;
   flex-shrink: 0;
   transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-trim-save:active {
-  transform: scale(0.92);
+.btn-trim-play:active { transform: scale(0.9); }
+
+.trim-progress-wrap {
+  flex: 1;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
-.btn-trim-reset {
-  width: 34px;
-  height: 34px;
+.trim-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--secondary-color), rgba(0, 242, 254, 0.4));
+  border-radius: 6px;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.trim-region {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(0, 230, 118, 0.15);
+  border-left: 2px solid var(--success-color);
+  border-right: 2px solid var(--primary-color);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.trim-time-label {
+  font-size: 0.78rem;
+  color: var(--secondary-color);
+  font-family: 'Outfit', monospace;
+  min-width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.trim-mark-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-trim-mark {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Outfit', sans-serif;
+}
+
+.btn-trim-mark:active {
+  transform: scale(0.96);
+}
+
+.btn-trim-mark.start {
+  border-color: rgba(0, 230, 118, 0.3);
+}
+
+.btn-trim-mark.start:active {
+  background: rgba(0, 230, 118, 0.15);
+}
+
+.btn-trim-mark.start i {
+  color: var(--success-color);
+}
+
+.btn-trim-mark.end {
+  border-color: rgba(255, 0, 80, 0.3);
+}
+
+.btn-trim-mark.end:active {
+  background: rgba(255, 0, 80, 0.15);
+}
+
+.btn-trim-mark.end i {
+  color: var(--primary-color);
+}
+
+.btn-trim-mark span {
+  font-weight: 600;
+  color: var(--secondary-color);
+}
+
+.trim-action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-trim-save {
+  flex: 1;
+  padding: 8px;
   border-radius: 8px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--success-color);
+  color: #000;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+  font-family: 'Outfit', sans-serif;
+}
+
+.btn-trim-save:active { transform: scale(0.96); }
+
+.btn-trim-reset {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-secondary);
   font-size: 0.8rem;
   cursor: pointer;
-  flex-shrink: 0;
   transition: 0.2s;
+  font-family: 'Outfit', sans-serif;
 }
 
-.btn-trim-reset:active {
-  transform: scale(0.92);
-}
-
-.trim-help {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  margin: 6px 0 0 0;
-  opacity: 0.7;
-}
+.btn-trim-reset:active { transform: scale(0.96); }

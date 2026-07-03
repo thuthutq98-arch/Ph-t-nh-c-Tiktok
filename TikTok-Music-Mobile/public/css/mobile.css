@@ -1313,3 +1313,100 @@ a {
   50% { transform: scale(1.15); }
   100% { transform: scale(1); }
 }
+
+/* ---------- Trim Panel ---------- */
+.trim-panel {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: rgba(0, 242, 254, 0.05);
+  border-top: 1px solid rgba(0, 242, 254, 0.15);
+  border-radius: 0 0 12px 12px;
+}
+
+.trim-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.trim-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.trim-field label {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.trim-input {
+  width: 100% !important;
+  padding: 6px 8px !important;
+  font-size: 0.85rem !important;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(0, 242, 254, 0.2) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  font-family: 'Outfit', monospace;
+}
+
+.trim-input:focus {
+  border-color: var(--secondary-color) !important;
+  outline: none;
+  box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+}
+
+.trim-arrow {
+  color: var(--secondary-color);
+  font-size: 1.1rem;
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.btn-trim-save {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: var(--success-color);
+  color: #000;
+  font-size: 0.85rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: 0.2s;
+}
+
+.btn-trim-save:active {
+  transform: scale(0.92);
+}
+
+.btn-trim-reset {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: 0.2s;
+}
+
+.btn-trim-reset:active {
+  transform: scale(0.92);
+}
+
+.trim-help {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin: 6px 0 0 0;
+  opacity: 0.7;
+}

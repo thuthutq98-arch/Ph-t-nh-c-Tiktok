@@ -339,6 +339,16 @@ app.get('/api/debug-music', (req, res) => {
   }
 });
 
+// Admin password middleware for protected routes
+function requireAdmin(req, res, next) {
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const providedPassword = req.headers['x-admin-password'] || req.body?.adminPassword || req.query?.adminPassword;
+  if (providedPassword !== adminPassword) {
+    return res.status(403).json({ error: 'Bạn không có quyền thực hiện thao tác này! Cần mật khẩu admin.' });
+  }
+  next();
+}
+
 // Multi-room system
 const rooms = new Map();
 const ROOM_TIMEOUT = 30 * 60 * 1000; // 30 minutes
@@ -633,7 +643,7 @@ app.post('/api/songs/upload', upload.array('songs'), (req, res) => {
   }
 });
 
-app.delete('/api/songs/:filename', (req, res) => {
+app.delete('/api/songs/:filename', requireAdmin, (req, res) => {
   const filePath = path.join(MUSIC_DIR, req.params.filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Không tìm thấy file nhạc' });
   try {

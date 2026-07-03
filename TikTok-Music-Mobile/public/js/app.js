@@ -297,6 +297,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadKnownGifts();
   renderGiftDropdown();
 
+  // Restore admin password from localStorage
+  const savedAdminPass = localStorage.getItem('tiktok_admin_pass');
+  const adminInput = document.getElementById('adminPasswordInput');
+  if (savedAdminPass && adminInput) adminInput.value = savedAdminPass;
+
   // Load config + songs
   await loadConfig();
   await loadSongsList();
@@ -541,24 +546,7 @@ function initSocket() {
     // Auto-collect gift name for dropdown
     addKnownGift(data.giftName, data.diamondCount);
 
-    const minCoins = systemConfig.minGiftCoins || 1;
-    const totalCoins = data.diamondCount * data.repeatCount;
-
-    if (totalCoins < minCoins) {
-      addLog('system', 'info', `Bỏ qua quà từ @${data.uniqueId} (${totalCoins} xu < ${minCoins} xu tối thiểu)`);
-      return;
-    }
-
-    // Queue song based on repeat count (x1 = 1 bài, x3 = 3 bài, ...)
-    const repeatCount = data.repeatCount || 1;
-    for (let i = 0; i < repeatCount; i++) {
-      queueNextSong(data);
-    }
-    if (repeatCount > 1) {
-      addLog('system', 'info', `🎁 x${repeatCount} → Thêm ${repeatCount} bài vào hàng đợi`);
-    }
-
-    // Gift TTS announcement
+    // Gift TTS announcement (đọc MỌI quà, không phụ thuộc xu tối thiểu)
     if (systemConfig.giftTtsEnabled) {
       const nickname = data.nickname || data.uniqueId;
       const count = data.repeatCount || 1;
@@ -588,6 +576,24 @@ function initSocket() {
         if (matchVoice) utter.voice = matchVoice;
         synth.speak(utter);
       }
+    }
+
+    // Phát nhạc chỉ khi đạt xu tối thiểu
+    const minCoins = systemConfig.minGiftCoins || 1;
+    const totalCoins = data.diamondCount * data.repeatCount;
+
+    if (totalCoins < minCoins) {
+      addLog('system', 'info', `Bỏ qua nhạc từ @${data.uniqueId} (${totalCoins} xu < ${minCoins} xu tối thiểu)`);
+      return;
+    }
+
+    // Queue song based on repeat count (x1 = 1 bài, x3 = 3 bài, ...)
+    const repeatCount = data.repeatCount || 1;
+    for (let i = 0; i < repeatCount; i++) {
+      queueNextSong(data);
+    }
+    if (repeatCount > 1) {
+      addLog('system', 'info', `🎁 x${repeatCount} → Thêm ${repeatCount} bài vào hàng đợi`);
     }
   });
 }
@@ -693,6 +699,16 @@ async function playSongItem(song) {
   } else {
     audioPlayer.src = song.url;
     audioPlayer.load();
+    
+    // Apply trim settings
+    const trim = getSongTrim(song.filename);
+    audioPlayer.addEventListener('loadedmetadata', function onLoaded() {
+      if (trim.start > 0) {
+        audioPlayer.currentTime = trim.start;
+      }
+      audioPlayer.removeEventListener('loadedmetadata', onLoaded);
+    });
+    
     try {
       await audioPlayer.play();
     } catch (err) {
@@ -720,10 +736,23 @@ audioPlayer.addEventListener('timeupdate', () => {
   if (isPlaying && currentSong && !currentSong.isSynth) {
     const cur = audioPlayer.currentTime;
     const dur = audioPlayer.duration || 0;
+    
+    // Check trim end
+    const trim = getSongTrim(currentSong.filename);
+    if (trim.end > 0 && cur >= trim.end) {
+      audioPlayer.pause();
+      handlePlaybackFinished();
+      return;
+    }
+    
     if (dur > 0) {
-      progressBar.style.width = `${(cur / dur) * 100}%`;
-      currentTimeText.textContent = formatTime(cur);
-      totalTimeText.textContent = formatTime(dur);
+      const trimStart = trim.start || 0;
+      const trimEnd = trim.end > 0 ? trim.end : dur;
+      const trimDur = trimEnd - trimStart;
+      const elapsed = cur - trimStart;
+      progressBar.style.width = `${(elapsed / trimDur) * 100}%`;
+      currentTimeText.textContent = formatTime(elapsed > 0 ? elapsed : 0);
+      totalTimeText.textContent = formatTime(trimDur);
     }
   }
 });
@@ -1161,6 +1190,13 @@ function setupEventListeners() {
 // ========================================
 // FILE UPLOAD
 // ========================================
+function getAdminPassword() {
+  const input = document.getElementById('adminPasswordInput');
+  const pass = input ? input.value : '';
+  if (pass) localStorage.setItem('tiktok_admin_pass', pass);
+  return pass || localStorage.getItem('tiktok_admin_pass') || '';
+}
+
 async function handleFileUpload(files) {
   if (!files || files.length === 0) return;
 
@@ -1193,10 +1229,21 @@ async function handleFileUpload(files) {
 // ========================================
 window.deleteSong = async (filename) => {
   if (!confirm('Xóa bài hát này?')) return;
+  const adminPass = getAdminPassword();
+  if (!adminPass) {
+    alert('⚠️ Vui lòng nhập mật khẩu admin trong Cài đặt trước khi xóa nhạc!');
+    return;
+  }
   try {
-    const res = await fetch(`/api/songs/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+    const res = await fetch(`/api/songs/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-password': adminPass }
+    });
     const data = await res.json();
-    if (data.success) {
+    if (res.status === 403) {
+      addLog('system', 'error', '🔒 Sai mật khẩu admin!');
+      alert('🔒 Sai mật khẩu admin!');
+    } else if (data.success) {
       addLog('system', 'info', 'Đã xóa bài hát');
       await loadSongsList();
     }
@@ -1204,6 +1251,49 @@ window.deleteSong = async (filename) => {
     addLog('system', 'error', 'Không thể xóa bài hát');
   }
 };
+
+// ========================================
+// SONG TRIM SETTINGS (per device, localStorage)
+// ========================================
+function getTrimSettings() {
+  try {
+    return JSON.parse(localStorage.getItem('tiktok_song_trims') || '{}');
+  } catch(e) { return {}; }
+}
+
+function saveTrimSetting(filename, startSec, endSec) {
+  const trims = getTrimSettings();
+  if (startSec === 0 && (endSec === 0 || endSec === null)) {
+    delete trims[filename]; // Remove if reset to default
+  } else {
+    trims[filename] = { start: startSec || 0, end: endSec || 0 };
+  }
+  localStorage.setItem('tiktok_song_trims', JSON.stringify(trims));
+}
+
+function getSongTrim(filename) {
+  const trims = getTrimSettings();
+  return trims[filename] || { start: 0, end: 0 };
+}
+
+// Format seconds to mm:ss
+function formatTrimTime(secs) {
+  if (!secs || secs <= 0) return '';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// Parse mm:ss or seconds input to total seconds
+function parseTrimInput(val) {
+  if (!val || val.trim() === '') return 0;
+  val = val.trim();
+  if (val.includes(':')) {
+    const parts = val.split(':');
+    return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+  }
+  return parseFloat(val) || 0;
+}
 
 // ========================================
 // RENDER FUNCTIONS
@@ -1247,6 +1337,12 @@ function renderLibraryList() {
   library.forEach(song => {
     const isAdded = activePlaylist.some(item => item.filename === song.filename);
     const isPreviewing = previewingFile === song.filename && previewAudio && !previewAudio.paused;
+    const trim = getSongTrim(song.filename);
+    const hasTrim = trim.start > 0 || trim.end > 0;
+    const trimLabel = hasTrim 
+      ? `✂️ ${formatTrimTime(trim.start) || '0:00'} → ${trim.end > 0 ? formatTrimTime(trim.end) : 'hết'}` 
+      : '';
+
     const card = document.createElement('div');
     card.className = 'song-card' + (isPreviewing ? ' previewing' : '');
     card.innerHTML = `
@@ -1256,10 +1352,13 @@ function renderLibraryList() {
         </button>
         <div class="song-meta">
           <div class="song-title-text">${song.name}</div>
-          <div class="song-size-text">${formatSize(song.size)}</div>
+          <div class="song-size-text">${formatSize(song.size)}${trimLabel ? ' · <span style="color:var(--secondary-color)">' + trimLabel + '</span>' : ''}</div>
         </div>
       </div>
       <div class="song-actions">
+        <button class="btn-icon ${hasTrim ? 'active-trim' : ''}" onclick="event.stopPropagation(); toggleTrimPanel('${song.filename}')" title="Cắt độ dài" style="${hasTrim ? 'color:var(--secondary-color)' : ''}">
+          <i class="fa-solid fa-scissors"></i>
+        </button>
         <button class="btn-icon ${isAdded ? 'added' : ''}" onclick="addToPlaylist('${song.filename}')" ${isAdded ? 'disabled style="opacity:0.3"' : ''}>
           <i class="fa-solid ${isAdded ? 'fa-check' : 'fa-plus'}"></i>
         </button>
@@ -1268,9 +1367,67 @@ function renderLibraryList() {
         </button>
       </div>
     `;
+
+    // Trim panel (hidden by default)
+    const trimPanel = document.createElement('div');
+    trimPanel.className = 'trim-panel';
+    trimPanel.id = `trim-${song.filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    trimPanel.style.display = 'none';
+    trimPanel.innerHTML = `
+      <div class="trim-controls">
+        <div class="trim-field">
+          <label>Bắt đầu</label>
+          <input type="text" class="form-input trim-input" placeholder="0:00" value="${formatTrimTime(trim.start)}" data-type="start" data-file="${song.filename}">
+        </div>
+        <span class="trim-arrow">→</span>
+        <div class="trim-field">
+          <label>Kết thúc</label>
+          <input type="text" class="form-input trim-input" placeholder="Hết bài" value="${formatTrimTime(trim.end)}" data-type="end" data-file="${song.filename}">
+        </div>
+        <button class="btn-trim-save" onclick="applyTrim('${song.filename}')">
+          <i class="fa-solid fa-check"></i>
+        </button>
+        ${hasTrim ? `<button class="btn-trim-reset" onclick="resetTrim('${song.filename}')"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
+      </div>
+      <p class="trim-help">Nhập định dạng phút:giây (VD: 0:30 → 1:45)</p>
+    `;
+
+    card.appendChild(trimPanel);
     libraryList.appendChild(card);
   });
 }
+
+// Toggle trim panel visibility
+window.toggleTrimPanel = (filename) => {
+  const panelId = `trim-${filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const panel = document.getElementById(panelId);
+  if (panel) {
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+};
+
+// Apply trim settings
+window.applyTrim = (filename) => {
+  const panelId = `trim-${filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  const inputs = panel.querySelectorAll('.trim-input');
+  let startSec = 0, endSec = 0;
+  inputs.forEach(inp => {
+    if (inp.dataset.type === 'start') startSec = parseTrimInput(inp.value);
+    if (inp.dataset.type === 'end') endSec = parseTrimInput(inp.value);
+  });
+  saveTrimSetting(filename, startSec, endSec);
+  addLog('system', 'success', `✂️ Đã cài đặt phát: ${formatTrimTime(startSec) || '0:00'} → ${endSec > 0 ? formatTrimTime(endSec) : 'hết bài'}`);
+  renderLibraryList();
+};
+
+// Reset trim
+window.resetTrim = (filename) => {
+  saveTrimSetting(filename, 0, 0);
+  addLog('system', 'info', '↩️ Đã đặt lại phát toàn bộ bài');
+  renderLibraryList();
+};
 
 function renderPlaylistList() {
   if (activePlaylist.length === 0) {

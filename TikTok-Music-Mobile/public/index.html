@@ -233,6 +233,45 @@
         </div>
       </div>
 
+      <!-- Translate Widget -->
+      <div class="translate-widget glass">
+        <div class="translate-header">
+          <div class="translate-lang-btn" id="translateFromLang">
+            <span>🇻🇳</span> Tiếng Việt
+          </div>
+          <button class="translate-swap-btn" id="translateSwapBtn" title="Đổi ngôn ngữ">
+            <i class="fa-solid fa-right-left"></i>
+          </button>
+          <div class="translate-lang-btn" id="translateToLang">
+            <span>🇺🇸</span> Tiếng Anh
+          </div>
+        </div>
+        <div class="translate-body">
+          <div class="translate-panel from">
+            <textarea id="translateInput" class="translate-textarea" placeholder="Nhập văn bản tiếng Việt..." rows="3"></textarea>
+            <div class="translate-panel-actions">
+              <button class="translate-speak-btn" onclick="speakTranslate('from')" title="Nghe phát âm">
+                <i class="fa-solid fa-volume-high"></i>
+              </button>
+              <button class="translate-clear-btn" onclick="clearTranslate()" title="Xóa">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+          <div class="translate-panel to">
+            <div class="translate-output" id="translateOutput">Bản dịch sẽ hiện ở đây...</div>
+            <div class="translate-panel-actions">
+              <button class="translate-speak-btn" onclick="speakTranslate('to')" title="Nghe phát âm">
+                <i class="fa-solid fa-volume-high"></i>
+              </button>
+              <button class="translate-copy-btn" onclick="copyTranslate()" title="Sao chép">
+                <i class="fa-solid fa-copy"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Live Log -->
       <div class="section-divider">
         <h3><i class="fa-solid fa-bolt"></i> Sự Kiện Live</h3>

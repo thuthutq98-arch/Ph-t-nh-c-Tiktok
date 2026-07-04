@@ -1991,10 +1991,11 @@ function escapeQuotes(str) {
 }
 
 // ========================================
-// TRANSLATE WIDGET
+// TRANSLATE WIDGET (collapsible, server proxy)
 // ========================================
 let translateDirection = { from: 'vi', to: 'en' };
 let translateTimer = null;
+let translateOpen = false;
 
 (function initTranslateWidget() {
   const input = document.getElementById('translateInput');
@@ -2002,10 +2003,10 @@ let translateTimer = null;
   
   if (!input) return;
   
-  // Auto-translate on typing (debounce 500ms)
+  // Auto-translate on typing (debounce 600ms)
   input.addEventListener('input', () => {
     clearTimeout(translateTimer);
-    translateTimer = setTimeout(() => doTranslate(), 500);
+    translateTimer = setTimeout(() => doTranslate(), 600);
   });
   
   // Swap languages
@@ -2015,37 +2016,43 @@ let translateTimer = null;
       translateDirection.from = translateDirection.to;
       translateDirection.to = temp;
       
-      // Update UI labels
       const fromEl = document.getElementById('translateFromLang');
       const toEl = document.getElementById('translateToLang');
       if (translateDirection.from === 'vi') {
-        fromEl.innerHTML = '<span>🇻🇳</span> Tiếng Việt';
-        toEl.innerHTML = '<span>🇺🇸</span> Tiếng Anh';
-        input.placeholder = 'Nhập văn bản tiếng Việt...';
+        fromEl.innerHTML = '<span>🇻🇳</span> VI';
+        toEl.innerHTML = '<span>🇺🇸</span> EN';
+        input.placeholder = 'Nhập tiếng Việt...';
       } else {
-        fromEl.innerHTML = '<span>🇺🇸</span> Tiếng Anh';
-        toEl.innerHTML = '<span>🇻🇳</span> Tiếng Việt';
-        input.placeholder = 'Type English text here...';
+        fromEl.innerHTML = '<span>🇺🇸</span> EN';
+        toEl.innerHTML = '<span>🇻🇳</span> VI';
+        input.placeholder = 'Type English...';
       }
       
-      // Swap text content
       const output = document.getElementById('translateOutput');
       const currentInput = input.value;
       const currentOutput = output.textContent;
-      if (currentOutput && currentOutput !== 'Bản dịch sẽ hiện ở đây...') {
+      if (currentOutput && currentOutput !== '...' && currentOutput !== 'Đang dịch...') {
         input.value = currentOutput;
         output.textContent = currentInput;
       }
       
-      // Animate swap button
       swapBtn.style.transform = 'rotate(180deg)';
       setTimeout(() => swapBtn.style.transform = '', 300);
       
-      // Re-translate
       if (input.value.trim()) doTranslate();
     });
   }
 })();
+
+// Toggle collapsible
+window.toggleTranslateWidget = () => {
+  const body = document.getElementById('translateBody');
+  const icon = document.getElementById('translateToggleIcon');
+  if (!body) return;
+  translateOpen = !translateOpen;
+  body.style.display = translateOpen ? 'flex' : 'none';
+  if (icon) icon.className = translateOpen ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
+};
 
 async function doTranslate() {
   const input = document.getElementById('translateInput');
@@ -2054,34 +2061,28 @@ async function doTranslate() {
   
   const text = input.value.trim();
   if (!text) {
-    output.textContent = 'Bản dịch sẽ hiện ở đây...';
-    output.style.opacity = '0.5';
+    output.textContent = '...';
+    output.style.opacity = '0.4';
     return;
   }
   
   output.textContent = 'Đang dịch...';
-  output.style.opacity = '0.5';
+  output.style.opacity = '0.4';
   
   try {
-    const langPair = `${translateDirection.from}|${translateDirection.to}`;
-    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`);
+    const res = await fetch(`/api/translate?text=${encodeURIComponent(text)}&sl=${translateDirection.from}&tl=${translateDirection.to}`);
     const data = await res.json();
     
-    if (data && data.responseData && data.responseData.translatedText) {
-      let translated = data.responseData.translatedText;
-      // MyMemory sometimes returns ALL CAPS for short phrases
-      if (translated === translated.toUpperCase() && translated.length < 50) {
-        translated = translated.charAt(0).toUpperCase() + translated.slice(1).toLowerCase();
-      }
-      output.textContent = translated;
+    if (data && data.translatedText) {
+      output.textContent = data.translatedText;
       output.style.opacity = '1';
     } else {
-      output.textContent = 'Không thể dịch';
-      output.style.opacity = '0.5';
+      output.textContent = 'Không dịch được';
+      output.style.opacity = '0.4';
     }
   } catch(e) {
     output.textContent = 'Lỗi kết nối';
-    output.style.opacity = '0.5';
+    output.style.opacity = '0.4';
   }
 }
 
@@ -2099,17 +2100,14 @@ window.speakTranslate = (side) => {
     lang = translateDirection.to === 'en' ? 'en-US' : 'vi-VN';
   }
   
-  if (!text || text === 'Bản dịch sẽ hiện ở đây...' || text === 'Đang dịch...') return;
+  if (!text || text === '...' || text === 'Đang dịch...') return;
   
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = lang;
   utter.rate = 0.9;
-  utter.pitch = 1.0;
-  
   const voices = synth.getVoices();
   const match = voices.find(v => v.lang.startsWith(lang.substring(0, 2)));
   if (match) utter.voice = match;
-  
   synth.speak(utter);
 };
 
@@ -2117,15 +2115,12 @@ window.clearTranslate = () => {
   const input = document.getElementById('translateInput');
   const output = document.getElementById('translateOutput');
   if (input) input.value = '';
-  if (output) {
-    output.textContent = 'Bản dịch sẽ hiện ở đây...';
-    output.style.opacity = '0.5';
-  }
+  if (output) { output.textContent = '...'; output.style.opacity = '0.4'; }
 };
 
 window.copyTranslate = () => {
   const output = document.getElementById('translateOutput');
-  if (!output || output.textContent === 'Bản dịch sẽ hiện ở đây...') return;
+  if (!output || output.textContent === '...') return;
   navigator.clipboard.writeText(output.textContent).then(() => {
     const btn = document.querySelector('.translate-copy-btn');
     if (btn) {

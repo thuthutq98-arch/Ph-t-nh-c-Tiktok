@@ -705,9 +705,11 @@ app.post('/api/tiktok/mock-chat', (req, res) => {
 // Translation API Proxy to avoid CORS/Adblocker issues on client
 app.get('/api/translate', (req, res) => {
   const text = req.query.text;
+  const sl = req.query.sl || 'auto';
+  const tl = req.query.tl || 'vi';
   if (!text) return res.json({ translatedText: '' });
   
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q=${encodeURIComponent(text)}`;
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
   
   const https = require('https');
   https.get(url, (response) => {

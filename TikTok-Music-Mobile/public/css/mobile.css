@@ -1478,3 +1478,144 @@ a {
 }
 
 .btn-trim-reset:active { transform: scale(0.96); }
+
+/* ---------- Translate Widget ---------- */
+.translate-widget {
+  margin: 12px 16px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.translate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.translate-lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--secondary-color);
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(0, 242, 254, 0.08);
+  cursor: default;
+  user-select: none;
+}
+
+.translate-lang-btn span {
+  font-size: 1.1rem;
+}
+
+.translate-swap-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.translate-swap-btn:active {
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--secondary-color);
+}
+
+.translate-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.translate-panel {
+  padding: 12px 14px;
+  position: relative;
+}
+
+.translate-panel.from {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.translate-panel.to {
+  background: rgba(0, 242, 254, 0.03);
+}
+
+.translate-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.5;
+  resize: none;
+  min-height: 60px;
+}
+
+.translate-textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.translate-output {
+  font-size: 1rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 60px;
+  opacity: 0.5;
+  word-wrap: break-word;
+}
+
+.translate-panel-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+
+.translate-speak-btn,
+.translate-clear-btn,
+.translate-copy-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.translate-speak-btn:active {
+  background: rgba(0, 242, 254, 0.2);
+  color: var(--secondary-color);
+  transform: scale(0.9);
+}
+
+.translate-clear-btn:active {
+  background: rgba(255, 0, 80, 0.2);
+  color: var(--primary-color);
+  transform: scale(0.9);
+}
+
+.translate-copy-btn:active {
+  background: rgba(0, 230, 118, 0.2);
+  color: var(--success-color);
+  transform: scale(0.9);
+}

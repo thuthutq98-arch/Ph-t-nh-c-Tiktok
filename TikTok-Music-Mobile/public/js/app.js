@@ -1989,3 +1989,148 @@ function escapeHtml(text) {
 function escapeQuotes(str) {
   return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
+
+// ========================================
+// TRANSLATE WIDGET
+// ========================================
+let translateDirection = { from: 'vi', to: 'en' };
+let translateTimer = null;
+
+(function initTranslateWidget() {
+  const input = document.getElementById('translateInput');
+  const swapBtn = document.getElementById('translateSwapBtn');
+  
+  if (!input) return;
+  
+  // Auto-translate on typing (debounce 500ms)
+  input.addEventListener('input', () => {
+    clearTimeout(translateTimer);
+    translateTimer = setTimeout(() => doTranslate(), 500);
+  });
+  
+  // Swap languages
+  if (swapBtn) {
+    swapBtn.addEventListener('click', () => {
+      const temp = translateDirection.from;
+      translateDirection.from = translateDirection.to;
+      translateDirection.to = temp;
+      
+      // Update UI labels
+      const fromEl = document.getElementById('translateFromLang');
+      const toEl = document.getElementById('translateToLang');
+      if (translateDirection.from === 'vi') {
+        fromEl.innerHTML = '<span>🇻🇳</span> Tiếng Việt';
+        toEl.innerHTML = '<span>🇺🇸</span> Tiếng Anh';
+        input.placeholder = 'Nhập văn bản tiếng Việt...';
+      } else {
+        fromEl.innerHTML = '<span>🇺🇸</span> Tiếng Anh';
+        toEl.innerHTML = '<span>🇻🇳</span> Tiếng Việt';
+        input.placeholder = 'Type English text here...';
+      }
+      
+      // Swap text content
+      const output = document.getElementById('translateOutput');
+      const currentInput = input.value;
+      const currentOutput = output.textContent;
+      if (currentOutput && currentOutput !== 'Bản dịch sẽ hiện ở đây...') {
+        input.value = currentOutput;
+        output.textContent = currentInput;
+      }
+      
+      // Animate swap button
+      swapBtn.style.transform = 'rotate(180deg)';
+      setTimeout(() => swapBtn.style.transform = '', 300);
+      
+      // Re-translate
+      if (input.value.trim()) doTranslate();
+    });
+  }
+})();
+
+async function doTranslate() {
+  const input = document.getElementById('translateInput');
+  const output = document.getElementById('translateOutput');
+  if (!input || !output) return;
+  
+  const text = input.value.trim();
+  if (!text) {
+    output.textContent = 'Bản dịch sẽ hiện ở đây...';
+    output.style.opacity = '0.5';
+    return;
+  }
+  
+  output.textContent = 'Đang dịch...';
+  output.style.opacity = '0.5';
+  
+  try {
+    const langPair = `${translateDirection.from}|${translateDirection.to}`;
+    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`);
+    const data = await res.json();
+    
+    if (data && data.responseData && data.responseData.translatedText) {
+      let translated = data.responseData.translatedText;
+      // MyMemory sometimes returns ALL CAPS for short phrases
+      if (translated === translated.toUpperCase() && translated.length < 50) {
+        translated = translated.charAt(0).toUpperCase() + translated.slice(1).toLowerCase();
+      }
+      output.textContent = translated;
+      output.style.opacity = '1';
+    } else {
+      output.textContent = 'Không thể dịch';
+      output.style.opacity = '0.5';
+    }
+  } catch(e) {
+    output.textContent = 'Lỗi kết nối';
+    output.style.opacity = '0.5';
+  }
+}
+
+window.speakTranslate = (side) => {
+  const synth = window.speechSynthesis;
+  if (!synth) return;
+  synth.cancel();
+  
+  let text, lang;
+  if (side === 'from') {
+    text = document.getElementById('translateInput')?.value;
+    lang = translateDirection.from === 'vi' ? 'vi-VN' : 'en-US';
+  } else {
+    text = document.getElementById('translateOutput')?.textContent;
+    lang = translateDirection.to === 'en' ? 'en-US' : 'vi-VN';
+  }
+  
+  if (!text || text === 'Bản dịch sẽ hiện ở đây...' || text === 'Đang dịch...') return;
+  
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = lang;
+  utter.rate = 0.9;
+  utter.pitch = 1.0;
+  
+  const voices = synth.getVoices();
+  const match = voices.find(v => v.lang.startsWith(lang.substring(0, 2)));
+  if (match) utter.voice = match;
+  
+  synth.speak(utter);
+};
+
+window.clearTranslate = () => {
+  const input = document.getElementById('translateInput');
+  const output = document.getElementById('translateOutput');
+  if (input) input.value = '';
+  if (output) {
+    output.textContent = 'Bản dịch sẽ hiện ở đây...';
+    output.style.opacity = '0.5';
+  }
+};
+
+window.copyTranslate = () => {
+  const output = document.getElementById('translateOutput');
+  if (!output || output.textContent === 'Bản dịch sẽ hiện ở đây...') return;
+  navigator.clipboard.writeText(output.textContent).then(() => {
+    const btn = document.querySelector('.translate-copy-btn');
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      setTimeout(() => btn.innerHTML = '<i class="fa-solid fa-copy"></i>', 1500);
+    }
+  });
+};

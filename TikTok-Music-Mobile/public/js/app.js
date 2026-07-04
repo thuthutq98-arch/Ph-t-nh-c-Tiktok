@@ -2105,10 +2105,97 @@ window.speakTranslate = (side) => {
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = lang;
   utter.rate = 0.9;
+  utter.pitch = 1.1;
+  
   const voices = synth.getVoices();
-  const match = voices.find(v => v.lang.startsWith(lang.substring(0, 2)));
-  if (match) utter.voice = match;
+  
+  if (lang === 'en-US') {
+    // Prefer female English voice for natural, expressive sound
+    const femaleVoice = voices.find(v => 
+      v.lang.startsWith('en') && /female|woman|zira|samantha|karen|fiona|moira|tessa|victoria|susan/i.test(v.name)
+    ) || voices.find(v => 
+      v.lang.startsWith('en') && !/male|david|james|daniel|mark|fred/i.test(v.name)
+    ) || voices.find(v => v.lang.startsWith('en'));
+    if (femaleVoice) utter.voice = femaleVoice;
+  } else {
+    const match = voices.find(v => v.lang.startsWith('vi'));
+    if (match) utter.voice = match;
+  }
+  
   synth.speak(utter);
+};
+
+// ========================================
+// MIC SPEECH-TO-TEXT FOR TRANSLATE
+// ========================================
+let micRecognition = null;
+let micActive = false;
+
+window.toggleMicTranslate = () => {
+  const micBtn = document.getElementById('translateMicBtn');
+  
+  if (micActive && micRecognition) {
+    micRecognition.stop();
+    micActive = false;
+    micBtn.classList.remove('mic-active');
+    return;
+  }
+  
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy dùng Chrome!');
+    return;
+  }
+  
+  micRecognition = new SpeechRecognition();
+  micRecognition.lang = translateDirection.from === 'vi' ? 'vi-VN' : 'en-US';
+  micRecognition.continuous = true;
+  micRecognition.interimResults = true;
+  
+  const input = document.getElementById('translateInput');
+  let finalTranscript = input.value || '';
+  
+  micRecognition.onstart = () => {
+    micActive = true;
+    micBtn.classList.add('mic-active');
+    input.placeholder = '🎤 Đang nghe...';
+  };
+  
+  micRecognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += (finalTranscript ? ' ' : '') + transcript;
+      } else {
+        interim = transcript;
+      }
+    }
+    input.value = finalTranscript + (interim ? ' ' + interim : '');
+    
+    // Auto-translate
+    clearTimeout(translateTimer);
+    translateTimer = setTimeout(() => doTranslate(), 800);
+  };
+  
+  micRecognition.onerror = (event) => {
+    if (event.error === 'not-allowed') {
+      alert('Vui lòng cho phép truy cập microphone!');
+    }
+    micActive = false;
+    micBtn.classList.remove('mic-active');
+    input.placeholder = translateDirection.from === 'vi' ? 'Nhập tiếng Việt...' : 'Type English...';
+  };
+  
+  micRecognition.onend = () => {
+    micActive = false;
+    micBtn.classList.remove('mic-active');
+    input.placeholder = translateDirection.from === 'vi' ? 'Nhập tiếng Việt...' : 'Type English...';
+    // Final translate
+    if (input.value.trim()) doTranslate();
+  };
+  
+  micRecognition.start();
 };
 
 window.clearTranslate = () => {
@@ -2116,6 +2203,13 @@ window.clearTranslate = () => {
   const output = document.getElementById('translateOutput');
   if (input) input.value = '';
   if (output) { output.textContent = '...'; output.style.opacity = '0.4'; }
+  // Stop mic if active
+  if (micActive && micRecognition) {
+    micRecognition.stop();
+    micActive = false;
+    const micBtn = document.getElementById('translateMicBtn');
+    if (micBtn) micBtn.classList.remove('mic-active');
+  }
 };
 
 window.copyTranslate = () => {

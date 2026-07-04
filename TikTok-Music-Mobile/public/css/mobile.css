@@ -1491,8 +1491,12 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  user-select: none;
+}
+
+.translate-header:active {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .translate-lang-btn {
@@ -1539,7 +1543,7 @@ a {
 }
 
 .translate-panel {
-  padding: 12px 14px;
+  padding: 10px 14px;
   position: relative;
 }
 
@@ -1557,11 +1561,11 @@ a {
   border: none;
   outline: none;
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-family: 'Outfit', sans-serif;
-  line-height: 1.5;
+  line-height: 1.4;
   resize: none;
-  min-height: 60px;
+  min-height: 40px;
 }
 
 .translate-textarea::placeholder {
@@ -1570,11 +1574,11 @@ a {
 }
 
 .translate-output {
-  font-size: 1rem;
+  font-size: 0.92rem;
   color: var(--text-primary);
-  line-height: 1.5;
-  min-height: 60px;
-  opacity: 0.5;
+  line-height: 1.4;
+  min-height: 40px;
+  opacity: 0.4;
   word-wrap: break-word;
 }
 

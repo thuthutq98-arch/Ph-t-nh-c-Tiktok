@@ -1314,6 +1314,38 @@ a {
   100% { transform: scale(1); }
 }
 
+/* ---------- Contact Banner ---------- */
+.contact-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 16px;
+  padding: 10px 14px;
+  background: rgba(0, 242, 254, 0.04);
+  border: 1px solid rgba(0, 242, 254, 0.1);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.contact-banner i {
+  color: var(--secondary-color);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.contact-link {
+  color: var(--secondary-color);
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+
+.contact-link:active {
+  opacity: 0.7;
+}
+
 /* ---------- Trim Panel (Live Player) ---------- */
 .trim-panel {
   width: 100%;

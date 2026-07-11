@@ -640,9 +640,15 @@ app.post('/api/verify-license', (req, res) => {
 // Config (per room)
 app.get('/api/config', (req, res) => {
   const roomId = req.query.room;
-  if (!roomId) return res.json(defaultConfig);
+  if (!roomId) return res.json(loadConfig());
   const room = getOrCreateRoom(roomId);
-  res.json(room.config);
+  // Merge with saved config so playlist is preserved
+  const savedCfg = loadConfig();
+  const merged = { ...savedCfg, ...room.config };
+  if (!room.config.playlist || room.config.playlist.length === 0) {
+    merged.playlist = savedCfg.playlist || [];
+  }
+  res.json(merged);
 });
 
 app.post('/api/config', (req, res) => {

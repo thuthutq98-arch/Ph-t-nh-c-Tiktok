@@ -572,6 +572,13 @@ async function loadSongsList() {
         if (song) activePlaylist.push(song);
       });
     }
+    
+    // If playlist is empty but we have songs, auto-add all songs
+    if (activePlaylist.length === 0 && library.length > 0) {
+      activePlaylist = [...library];
+      systemConfig.playlist = library.map(s => s.filename);
+      saveToLocal();
+    }
 
     playlistCountBadge.textContent = activePlaylist.length;
     renderLibraryList();

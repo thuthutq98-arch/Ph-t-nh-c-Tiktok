@@ -324,7 +324,98 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Load stats + auto-refresh every 10s
   loadStats();
   setInterval(loadStats, 10000);
+
+  // iOS Audio Unlock
+  setupIOSAudioUnlock();
 });
+
+// ========================================
+// iOS AUDIO UNLOCK
+// ========================================
+let audioUnlocked = false;
+
+function setupIOSAudioUnlock() {
+  // Detect iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  
+  if (!isIOS && !/Safari/.test(navigator.userAgent)) {
+    audioUnlocked = true;
+    return;
+  }
+
+  // Show unlock banner for iOS users
+  const banner = document.createElement('div');
+  banner.id = 'iosAudioBanner';
+  banner.innerHTML = `
+    <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#ff0050,#7b2ff7);padding:12px 20px;text-align:center;font-size:0.85rem;color:#fff;font-family:'Outfit',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="unlockIOSAudio()">
+      <i class="fa-solid fa-volume-high" style="animation:pulse 1s infinite;"></i>
+      <span>Bấm vào đây để bật âm thanh trên iPhone</span>
+    </div>
+  `;
+  document.body.prepend(banner);
+
+  // Also unlock on any touch
+  const unlockEvents = ['touchstart', 'touchend', 'click'];
+  const unlockHandler = () => {
+    unlockIOSAudio();
+    unlockEvents.forEach(evt => document.removeEventListener(evt, unlockHandler));
+  };
+  unlockEvents.forEach(evt => document.addEventListener(evt, unlockHandler, { once: false }));
+}
+
+window.unlockIOSAudio = () => {
+  if (audioUnlocked) {
+    const banner = document.getElementById('iosAudioBanner');
+    if (banner) banner.remove();
+    return;
+  }
+
+  // Method 1: Play silent on the main audio player
+  try {
+    audioPlayer.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAgAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAABsOjABAAAAAAAAAAAAAAAAAAAAP/jOMAAAEUAUhYAAAJAIA5JhxBAB/yEhCfEIQnxCA5P/IQhCf/6EIQAAABD//WAAhD/GMAAH//5CEJ8hCE+IQh4f/9CEJ8QhCfEITkIQn/+QhOfIQhPiEITn//+QhCfEIQnxCE//IQhOQhOfIQhP/+hCE+IQhPiEJz///IQnIQhPiEIT/+hCE+IQhPiEJ//kIQnIQhPiEIT4hCE5CEJ/5CEJ8QhCfEITk///IQhPiEIT4hCc//+QhCchCE+IQhPiEITkP/8hCE+IQhPiEJyEITkIQnxCEJ8QhOQhCf+QhCfEIQnxCE5//8hCE+IQhPiEJz//5CEJyEIT4hCE+IQhOQ//yEIT4hCE+IQnIQhOf+QhCfEIQnxCE5CEJ/5CEJ8QhCfEITn//+QhCfEIQnxCE5/5CEJyEIT4hCE+IQhOQ/IQhPiEIT4hCchCE/8hCE+IQhPiEJyH/+QhCfEIQnxCE5CEJ/5CEJ8QhCfEITn/kIQnIQhPiEIT4hCE5D8hCE+IQhPiEJz//5CEJ8QhCfEITkIQn/kIQnxCEJ8QhOfEIQnIf/5CEJ8QhCfEITkIf/5CEJ8QhCfEITn/+QhCchCE+IQhPiEITk//yEIT4hCE+IQnP//kIQnIQhPiEIT4hCE5D//IQhPiEIT4hCc//+QhCchCE+IQhP/+QhCfEIQnxCE5//8hCE+IQhPiEJz/5CEJyEIT4hCE//5CEJ8QhCfEITn/kIQnIQhPiEIT/+hCE+IQhPiEJz5CEJ/5CEJ8QhCfEITn/+QhCchCE+IQhP/6EIT4hCE+IQnP/8hCE5CEJ8QhCfEITkP/8hCE+IQhPiEJz/5CEJyEIT4hCE/8hCE+IQhPiEJz//5CEJyEIT4hCE+IQhP/IQhPiEIT4hCchCE/';
+    audioPlayer.volume = 0.01;
+    const playPromise = audioPlayer.play();
+    if (playPromise) {
+      playPromise.then(() => {
+        setTimeout(() => {
+          audioPlayer.pause();
+          audioPlayer.src = '';
+          audioPlayer.volume = parseFloat(volumeSlider.value) || 0.7;
+        }, 100);
+      }).catch(() => {});
+    }
+  } catch(e) {}
+
+  // Method 2: Create and resume AudioContext
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.001;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(0);
+      oscillator.stop(0.001);
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+  } catch(e) {}
+
+  audioUnlocked = true;
+  
+  // Remove banner
+  const banner = document.getElementById('iosAudioBanner');
+  if (banner) {
+    banner.style.transition = '0.3s';
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateY(-100%)';
+    setTimeout(() => banner.remove(), 300);
+  }
+  
+  addLog('system', 'success', '🔊 Đã bật âm thanh thành công!');
+};
 
 // ========================================
 // STATS DASHBOARD

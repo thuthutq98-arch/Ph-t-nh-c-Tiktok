@@ -318,7 +318,56 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/music', express.static(MUSIC_DIR));
+
+// Music streaming with Range request support (required for iOS Safari)
+app.get('/music/:filename', (req, res) => {
+  const filePath = path.join(MUSIC_DIR, decodeURIComponent(req.params.filename));
+  
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('Not found');
+  }
+  
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeTypes = {
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.m4a': 'audio/mp4',
+    '.aac': 'audio/aac'
+  };
+  const contentType = mimeTypes[ext] || 'audio/mpeg';
+  
+  const range = req.headers.range;
+  
+  if (range) {
+    // Range request (iOS Safari needs this)
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunkSize = (end - start) + 1;
+    
+    const stream = fs.createReadStream(filePath, { start, end });
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': contentType,
+      'Cache-Control': 'no-cache'
+    });
+    stream.pipe(res);
+  } else {
+    // Normal request
+    res.writeHead(200, {
+      'Content-Length': fileSize,
+      'Content-Type': contentType,
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'no-cache'
+    });
+    fs.createReadStream(filePath).pipe(res);
+  }
+});
 
 // Debug: Check music directory (temporary)
 app.get('/api/debug-music', (req, res) => {

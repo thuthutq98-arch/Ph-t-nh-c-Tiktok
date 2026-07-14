@@ -192,7 +192,7 @@ const GIFT_ICONS = {
   'crown': '👑', 'fire': '🔥', 'rocket': '🚀', 'bomb': '💣',
   'thunder': '⚡', 'soccer': '⚽', 'basketball': '🏀', 'football': '🏈',
   'muscle': '💪', 'clap': '👏', 'thumbs up': '👍', 'wink': '😉',
-  'rosa': '🌹', 'hat': '🎩', 'sunflower': '🌻', 'tulip': '🌷',
+  'rosa': '🌺', 'hat': '🎩', 'sunflower': '🌻', 'tulip': '🌷',
   'dolphin': '🐬', 'unicorn': '🦄', 'panda': '🐼', 'koala': '🐨',
   'chick': '🐥', 'swan': '🦢', 'love': '💕',
 };

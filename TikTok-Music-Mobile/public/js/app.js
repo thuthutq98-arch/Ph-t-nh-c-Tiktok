@@ -180,52 +180,30 @@ const customGiftInput = document.getElementById('customGiftInput');
 // === Known Gifts System ===
 // Pre-built common TikTok gifts with icons
 const GIFT_ICONS = {
-  // Phổ biến
-  'rose': '🌹', 'rosa': '🌺', 'gg': '🎮', 'finger heart': '🫰', 'bắn tim': '🫰',
-  'doughnut': '🍩', 'hand heart': '🫶', 'perfume': '🧴', 'little crown': '👑',
-  'ice cream cone': '🍦', 'galaxy': '🌌', 'lucky pig': '🐷', 'confetti': '🎊',
-  'paper crane': '🦢', 'tiktok': '🎵', 'love you': '❤️', 'yêu bạn': '❤️',
-  'cap': '🧢', 'mũ lưỡi trai': '🧢', 'heart me': '💖', 'heart': '❤️',
-  // Quà khoanh đỏ (ảnh 1)
-  'trái bóng xoáy': '⚽', 'spinning soccer ball': '⚽', 'soccer ball': '⚽',
-  'cà phê phin': '☕', 'vietnamese coffee': '☕', 'coffee': '☕',
-  'bó hoa': '💐', 'bouquet': '💐', 'flower bouquet': '💐',
-  'hoan hô': '👏', 'applause': '👏', 'cheers': '👏',
-  // Quà khoanh đỏ (ảnh 2)
-  'little kisses': '🦭', 'bắn hôn': '🦭',
-  'bing chilling': '🍦',
-  // Động vật
-  'cat': '🐱', 'lion': '🦁', 'bear': '🐻', 'penguin': '🐧', 'butterfly': '🦋',
-  'dolphin': '🐬', 'unicorn': '🦄', 'panda': '🐼', 'koala': '🐨',
-  'chick': '🐥', 'swan': '🦢',
-  // Giá trị cao
-  'diamond': '💎', 'money gun': '💰', 'fireworks': '🎆', 'trophy': '🏆',
+  // 1 xu — phổ biến nhất
+  'rose': '🌹', 'tiktok': '🎵', 'gg': '🎮', 'ice cream cone': '🍦',
+  'football': '⚽', 'mini speaker': '📻', 'paper crane': '🦢', 'weights': '🏋️',
+  // 5 xu
+  'finger heart': '🫰', 'bắn tim': '🫰', 'panda': '🐼', 'mic': '🎤', 'chill': '😎',
+  // 9-10 xu
+  'hand wave': '👋', 'tiny diny': '🦖', 'rosa': '🌺',
+  // 20-30 xu
+  'perfume': '🧴', 'doughnut': '🍩',
+  // 99 xu
+  'hat and mustache': '🎩', 'cap': '🧢', 'little crown': '👑',
+  // 100+ xu
+  'confetti': '🎊', 'galaxy': '🌌', 'lion': '🦁', 'diamond': '💎',
   'crown': '👑', 'fire': '🔥', 'rocket': '🚀',
-  // Âm nhạc & Giải trí
-  'drums': '🥁', 'guitar': '🎸', 'đàn guitar': '🎸', 'microphone': '🎤',
-  'gift box': '🎁', 'cake': '🎂',
-  // Cảm xúc
-  'kiss': '💋', 'love': '💕', 'wink': '😉', 'muscle': '💪',
-  'clap': '👏', 'thumbs up': '👍', 'bomb': '💣', 'thunder': '⚡',
-  // Hoa & Thiên nhiên
-  'flower': '🌸', 'sunflower': '🌻', 'tulip': '🌷', 'rainbow': '🌈',
-  'cỏ bốn lá': '🍀', 'four leaf clover': '🍀',
-  // Thể thao
-  'soccer': '⚽', 'basketball': '🏀', 'football': '🏈',
-  // Phụ kiện
-  'sunglasses': '🕶️', 'hat': '🎩', 'star': '⭐',
-  // Quà VN phổ biến khác
-  'thả tim': '💗', 'drop heart': '💗', 'thả tim cho tôi': '💗',
-  'trái tim cộng đồng': '🫶', 'community heart': '🫶',
-  'phản ứng quá lố': '🤪', 'overreaction': '🤪',
-  'rất tốt': '👍', 'very good': '👍',
-  'mảnh hy vọng': '🪙', 'piece of hope': '🪙',
-  'hiểu ý tôi chứ': '😏', 'you know what i mean': '😏',
-  'choáng luôn': '😵', 'stunning': '😵',
-  'tình thần': '🐌', 'spirit': '🐌',
-  'takoyaki': '🐙', 'gia đình': '❤️‍🔥', 'family': '❤️‍🔥',
-  'vòng cổ tình bạn': '📿', 'friendship necklace': '📿',
-  'vé hành trình': '🎫', 'journey ticket': '🎫',
+  // Khác hay gặp
+  'heart': '❤️', 'love': '💕', 'love you': '❤️', 'heart me': '💖',
+  'hand heart': '🫶', 'kiss': '💋', 'gift box': '🎁',
+  'lucky pig': '🐷', 'star': '⭐', 'rainbow': '🌈',
+  'guitar': '🎸', 'drums': '🥁', 'microphone': '🎤',
+  'sunflower': '🌻', 'flower': '🌸', 'butterfly': '🦋',
+  'cat': '🐱', 'bear': '🐻', 'dolphin': '🐬', 'unicorn': '🦄',
+  // Tên tiếng Việt
+  'hoa hồng': '🌹', 'bó hoa': '💐', 'cà phê phin': '☕',
+  'trái bóng xoáy': '⚽', 'hoan hô': '👏', 'vẫy tay': '👋',
 };
 
 function getGiftIcon(giftName) {
@@ -239,22 +217,35 @@ function getGiftIcon(giftName) {
 }
 
 const DEFAULT_GIFTS = [
+  // 1 xu — rất phổ biến
   { name: 'Rose', label: '🌹 Rose (Hoa hồng)', diamonds: 1 },
-  { name: 'GG', label: '🎮 GG', diamonds: 1 },
-  { name: 'Ice Cream Cone', label: '🍦 Ice Cream (Kem ốc quế)', diamonds: 1 },
-  { name: 'Finger Heart', label: '🫰 Finger Heart (Tim ngón tay)', diamonds: 5 },
-  { name: 'Doughnut', label: '🍩 Doughnut (Bánh Donut)', diamonds: 30 },
-  { name: 'Hand Heart', label: '🫶 Hand Heart (Tim tay)', diamonds: 10 },
-  { name: 'Perfume', label: '🧴 Perfume (Nước hoa)', diamonds: 20 },
-  { name: 'Little Crown', label: '👑 Little Crown (Vương miện nhỏ)', diamonds: 99 },
-  { name: 'Galaxy', label: '🌌 Galaxy (Thiên hà)', diamonds: 1000 },
-  { name: 'lucky pig', label: '🐷 Lucky Pig (Heo may mắn)', diamonds: 1 },
-  { name: 'Confetti', label: '🎊 Confetti (Hoa giấy)', diamonds: 100 },
-  { name: 'Paper Crane', label: '🦢 Paper Crane (Hạc giấy)', diamonds: 1 },
   { name: 'TikTok', label: '🎵 TikTok', diamonds: 1 },
-  { name: 'Love you', label: '❤️ Love You (Yêu bạn)', diamonds: 25 },
+  { name: 'GG', label: '🎮 GG', diamonds: 1 },
+  { name: 'Ice Cream Cone', label: '🍦 Ice Cream Cone (Kem ốc quế)', diamonds: 1 },
+  { name: 'Football', label: '⚽ Football (Bóng đá)', diamonds: 1 },
+  { name: 'Mini Speaker', label: '📻 Mini Speaker (Loa mini)', diamonds: 1 },
+  { name: 'Paper Crane', label: '🦢 Paper Crane (Hạc giấy)', diamonds: 1 },
+  { name: 'Weights', label: '🏋️ Weights (Tạ)', diamonds: 1 },
+  // 5 xu — phổ biến
+  { name: 'Finger Heart', label: '🫰 Finger Heart (Bắn tim)', diamonds: 5 },
+  { name: 'Panda', label: '🐼 Panda (Gấu trúc)', diamonds: 5 },
+  { name: 'Mic', label: '🎤 Mic (Micro)', diamonds: 5 },
+  { name: 'Chill', label: '😎 Chill', diamonds: 5 },
+  // 9-10 xu
+  { name: 'Hand Wave', label: '👋 Hand Wave (Vẫy tay)', diamonds: 9 },
+  { name: 'Tiny Diny', label: '🦖 Tiny Diny (Khủng long)', diamonds: 10 },
+  { name: 'Rosa', label: '🌺 Rosa', diamonds: 10 },
+  // 20-30 xu
+  { name: 'Perfume', label: '🧴 Perfume (Nước hoa)', diamonds: 20 },
+  { name: 'Doughnut', label: '🍩 Doughnut (Bánh Donut)', diamonds: 30 },
+  // 99 xu
+  { name: 'Hat and Mustache', label: '🎩 Hat and Mustache (Nón & Ria)', diamonds: 99 },
   { name: 'Cap', label: '🧢 Cap (Mũ lưỡi trai)', diamonds: 99 },
-  { name: 'Heart Me', label: '💖 Heart Me', diamonds: 5 },
+  { name: 'Little Crown', label: '👑 Little Crown (Vương miện)', diamonds: 99 },
+  // 100+ xu — ít hơn nhưng vẫn hay gặp
+  { name: 'Confetti', label: '🎊 Confetti (Hoa giấy)', diamonds: 100 },
+  { name: 'Rosa', label: '🌺 Rosa', diamonds: 10 },
+  { name: 'Galaxy', label: '🌌 Galaxy (Thiên hà)', diamonds: 1000 },
 ];
 
 let knownGifts = []; // { name, label, diamonds }
@@ -280,14 +271,23 @@ function saveKnownGifts() {
   try { localStorage.setItem('tiktok_known_gifts', JSON.stringify(knownGifts)); } catch(e) {}
 }
 
-function addKnownGift(name, diamonds) {
+function addKnownGift(name, diamonds, giftPictureUrl) {
   if (!name) return;
   const existing = knownGifts.find(g => g.name.toLowerCase() === name.toLowerCase());
   if (!existing) {
     const icon = getGiftIcon(name);
-    knownGifts.push({ name, label: `${icon} ${name}` + (diamonds ? ` (${diamonds}💎)` : ''), diamonds: diamonds || 0 });
+    knownGifts.push({ 
+      name, 
+      label: `${icon} ${name}` + (diamonds ? ` (${diamonds}💎)` : ''), 
+      diamonds: diamonds || 0,
+      imageUrl: giftPictureUrl || null
+    });
     saveKnownGifts();
     renderGiftDropdown();
+  } else if (giftPictureUrl && !existing.imageUrl) {
+    // Update image if we didn't have one before
+    existing.imageUrl = giftPictureUrl;
+    saveKnownGifts();
   }
 }
 
@@ -645,6 +645,27 @@ function initSocket() {
     viewerCountEl.textContent = data.viewerCount;
   });
 
+  socket.on('gift-catalog', (catalog) => {
+    if (!catalog || catalog.length === 0) return;
+    catalog.forEach(g => {
+      const existing = knownGifts.find(kg => kg.name.toLowerCase() === g.name.toLowerCase());
+      if (existing) {
+        existing.imageUrl = g.imageUrl;
+      } else {
+        const icon = getGiftIcon(g.name);
+        knownGifts.push({
+          name: g.name,
+          label: `${icon} ${g.name}` + (g.diamonds ? ` (${g.diamonds}💎)` : ''),
+          diamonds: g.diamonds || 0,
+          imageUrl: g.imageUrl
+        });
+      }
+    });
+    saveKnownGifts();
+    renderGiftDropdown();
+    renderMappingList();
+  });
+
   const recentlySpoken = new Set();
   
   socket.on('chat', (data) => {
@@ -672,8 +693,8 @@ function initSocket() {
   socket.on('gift', (data) => {
     addLog('gift', 'success', data);
 
-    // Auto-collect gift name for dropdown
-    addKnownGift(data.giftName, data.diamondCount);
+    // Auto-collect gift name + image for dropdown
+    addKnownGift(data.giftName, data.diamondCount, data.giftPictureUrl);
 
     // Gift TTS announcement (đọc MỌI quà, không phụ thuộc xu tối thiểu)
     if (systemConfig.giftTtsEnabled) {
@@ -1788,10 +1809,19 @@ function renderMappingList() {
 
     const card = document.createElement('div');
     card.className = 'song-card';
-    const giftIcon = getGiftIcon(giftName);
+    
+    // Try to get real TikTok image from knownGifts
+    const known = knownGifts.find(g => g.name.toLowerCase() === giftName.toLowerCase());
+    let iconHtml;
+    if (known && known.imageUrl) {
+      iconHtml = `<img src="${known.imageUrl}" class="gift-icon-img" style="width:36px;height:36px;" alt="${giftName}" onerror="this.outerHTML='<span class=song-icon style=font-size:1.4rem>${getGiftIcon(giftName)}</span>'">`;
+    } else {
+      iconHtml = `<span class="song-icon" style="font-size: 1.4rem;">${getGiftIcon(giftName)}</span>`;
+    }
+    
     card.innerHTML = `
       <div class="song-details">
-        <span class="song-icon" style="font-size: 1.4rem;">${giftIcon}</span>
+        ${iconHtml}
         <div class="song-meta">
           <div class="song-title-text">${giftName}</div>
           <div class="song-size-text" style="color: var(--secondary-color);">➔ ${songName}</div>
@@ -1910,19 +1940,20 @@ function addLog(type, status, data) {
         });
     }
   } else if (type === 'gift') {
-    let giftIcon = '🎁';
-    const nameLower = data.giftName.toLowerCase();
-    if (nameLower.includes('rose') || nameLower.includes('hoa hồng')) giftIcon = '🌹';
-    else if (nameLower.includes('heart') || nameLower.includes('tim')) giftIcon = '💖';
-    else if (nameLower.includes('crown') || nameLower.includes('mũ')) giftIcon = '👑';
-    else if (nameLower.includes('perfume') || nameLower.includes('nước hoa')) giftIcon = '🧪';
-    else if (nameLower.includes('galaxy') || nameLower.includes('vũ trụ')) giftIcon = '🪐';
-
     const totalCoins = data.diamondCount * data.repeatCount;
     logDiv.className = 'gift-message';
+    
+    // Use real TikTok gift image if available, fallback to emoji
+    let iconHtml;
+    if (data.giftPictureUrl) {
+      iconHtml = `<img src="${data.giftPictureUrl}" class="gift-icon-img" alt="${data.giftName}" onerror="this.outerHTML='<span class=gift-icon-badge>${getGiftIcon(data.giftName)}</span>'">`;
+    } else {
+      iconHtml = `<span class="gift-icon-badge">${getGiftIcon(data.giftName)}</span>`;
+    }
+    
     logDiv.innerHTML = `
       <div class="gift-message-info">
-        <span class="gift-icon-badge">${giftIcon}</span>
+        ${iconHtml}
         <div>
           <span class="username">${data.nickname}</span>
           <span class="gift-details">tặng ${data.repeatCount}x ${data.giftName}</span>

@@ -163,10 +163,17 @@
       <!-- Add Mapping Form -->
       <div class="mapping-form glass">
         <div class="form-group">
-          <label for="mappingGiftName">TÊN QUÀ TẶNG</label>
-          <select id="mappingGiftName" class="form-input form-select">
-            <option value="">-- Chọn quà tặng --</option>
-          </select>
+          <label>TÊN QUÀ TẶNG</label>
+          <div class="custom-select-container" id="customGiftSelectContainer">
+            <div class="custom-select-trigger" id="customGiftSelectTrigger">
+              <span id="customGiftSelectTriggerText">-- Chọn quà tặng --</span>
+              <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div class="custom-select-options" id="customGiftSelectOptions">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          <input type="hidden" id="mappingGiftName" value="">
         </div>
         <div class="form-group" id="customGiftGroup" style="display:none;">
           <label for="customGiftInput">NHẬP TÊN QUÀ</label>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tiktok-music-v33';
+const CACHE_NAME = 'tiktok-music-v34';
 const ASSETS = [
   '/',
   '/index.html',
@@ -25,10 +25,18 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // Skip API, socket, music requests
   if (e.request.url.includes('/api/') || e.request.url.includes('/socket.io/') || e.request.url.includes('/music/')) {
     return;
   }
+  // Network first: try server, fallback to cache (ensures updates reach users fast)
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request)
+      .then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

@@ -180,21 +180,52 @@ const customGiftInput = document.getElementById('customGiftInput');
 // === Known Gifts System ===
 // Pre-built common TikTok gifts with icons
 const GIFT_ICONS = {
-  'rose': '🌹', 'gg': '🎮', 'ice cream cone': '🍦', 'finger heart': '🫰',
+  // Phổ biến
+  'rose': '🌹', 'rosa': '🌺', 'gg': '🎮', 'finger heart': '🫰', 'bắn tim': '🫰',
   'doughnut': '🍩', 'hand heart': '🫶', 'perfume': '🧴', 'little crown': '👑',
-  'galaxy': '🌌', 'lucky pig': '🐷', 'confetti': '🎊', 'paper crane': '🦢',
-  'tiktok': '🎵', 'love you': '❤️', 'cap': '🧢', 'heart me': '💖',
-  'sunglasses': '🕶️', 'rainbow': '🌈', 'star': '⭐', 'cat': '🐱',
-  'lion': '🦁', 'bear': '🐻', 'penguin': '🐧', 'butterfly': '🦋',
-  'diamond': '💎', 'money gun': '💰', 'fireworks': '🎆', 'trophy': '🏆',
-  'drums': '🥁', 'guitar': '🎸', 'microphone': '🎤', 'gift box': '🎁',
-  'cake': '🎂', 'heart': '❤️', 'kiss': '💋', 'flower': '🌸',
-  'crown': '👑', 'fire': '🔥', 'rocket': '🚀', 'bomb': '💣',
-  'thunder': '⚡', 'soccer': '⚽', 'basketball': '🏀', 'football': '🏈',
-  'muscle': '💪', 'clap': '👏', 'thumbs up': '👍', 'wink': '😉',
-  'rosa': '🌺', 'hat': '🎩', 'sunflower': '🌻', 'tulip': '🌷',
+  'ice cream cone': '🍦', 'galaxy': '🌌', 'lucky pig': '🐷', 'confetti': '🎊',
+  'paper crane': '🦢', 'tiktok': '🎵', 'love you': '❤️', 'yêu bạn': '❤️',
+  'cap': '🧢', 'mũ lưỡi trai': '🧢', 'heart me': '💖', 'heart': '❤️',
+  // Quà khoanh đỏ (ảnh 1)
+  'trái bóng xoáy': '⚽', 'spinning soccer ball': '⚽', 'soccer ball': '⚽',
+  'cà phê phin': '☕', 'vietnamese coffee': '☕', 'coffee': '☕',
+  'bó hoa': '💐', 'bouquet': '💐', 'flower bouquet': '💐',
+  'hoan hô': '👏', 'applause': '👏', 'cheers': '👏',
+  // Quà khoanh đỏ (ảnh 2)
+  'little kisses': '🦭', 'bắn hôn': '🦭',
+  'bing chilling': '🍦',
+  // Động vật
+  'cat': '🐱', 'lion': '🦁', 'bear': '🐻', 'penguin': '🐧', 'butterfly': '🦋',
   'dolphin': '🐬', 'unicorn': '🦄', 'panda': '🐼', 'koala': '🐨',
-  'chick': '🐥', 'swan': '🦢', 'love': '💕',
+  'chick': '🐥', 'swan': '🦢',
+  // Giá trị cao
+  'diamond': '💎', 'money gun': '💰', 'fireworks': '🎆', 'trophy': '🏆',
+  'crown': '👑', 'fire': '🔥', 'rocket': '🚀',
+  // Âm nhạc & Giải trí
+  'drums': '🥁', 'guitar': '🎸', 'đàn guitar': '🎸', 'microphone': '🎤',
+  'gift box': '🎁', 'cake': '🎂',
+  // Cảm xúc
+  'kiss': '💋', 'love': '💕', 'wink': '😉', 'muscle': '💪',
+  'clap': '👏', 'thumbs up': '👍', 'bomb': '💣', 'thunder': '⚡',
+  // Hoa & Thiên nhiên
+  'flower': '🌸', 'sunflower': '🌻', 'tulip': '🌷', 'rainbow': '🌈',
+  'cỏ bốn lá': '🍀', 'four leaf clover': '🍀',
+  // Thể thao
+  'soccer': '⚽', 'basketball': '🏀', 'football': '🏈',
+  // Phụ kiện
+  'sunglasses': '🕶️', 'hat': '🎩', 'star': '⭐',
+  // Quà VN phổ biến khác
+  'thả tim': '💗', 'drop heart': '💗', 'thả tim cho tôi': '💗',
+  'trái tim cộng đồng': '🫶', 'community heart': '🫶',
+  'phản ứng quá lố': '🤪', 'overreaction': '🤪',
+  'rất tốt': '👍', 'very good': '👍',
+  'mảnh hy vọng': '🪙', 'piece of hope': '🪙',
+  'hiểu ý tôi chứ': '😏', 'you know what i mean': '😏',
+  'choáng luôn': '😵', 'stunning': '😵',
+  'tình thần': '🐌', 'spirit': '🐌',
+  'takoyaki': '🐙', 'gia đình': '❤️‍🔥', 'family': '❤️‍🔥',
+  'vòng cổ tình bạn': '📿', 'friendship necklace': '📿',
+  'vé hành trình': '🎫', 'journey ticket': '🎫',
 };
 
 function getGiftIcon(giftName) {

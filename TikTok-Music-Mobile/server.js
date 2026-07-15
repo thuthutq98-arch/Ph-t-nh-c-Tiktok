@@ -191,17 +191,21 @@ const PORT = process.env.PORT || 3000;
 const MUSIC_DIR = path.join(__dirname, 'public', 'music');
 if (!fs.existsSync(MUSIC_DIR)) fs.mkdirSync(MUSIC_DIR, { recursive: true });
 
-// Auto-seed: Copy from GitHub Music folder on first boot
+// Auto-seed: Always copy missing files from GitHub Music folder
 const GITHUB_MUSIC = path.join(__dirname, 'Music');
 if (fs.existsSync(GITHUB_MUSIC)) {
-  const diskFiles = fs.readdirSync(MUSIC_DIR).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
-  if (diskFiles.length === 0) {
-    const srcFiles = fs.readdirSync(GITHUB_MUSIC).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
-    srcFiles.forEach(f => {
-      try { fs.copyFileSync(path.join(GITHUB_MUSIC, f), path.join(MUSIC_DIR, f)); } catch(e) {}
-    });
-    console.log(`  📋 Đã copy ${srcFiles.length} bài từ GitHub/Music → public/music`);
-  }
+  const diskFiles = new Set(fs.readdirSync(MUSIC_DIR).map(f => f.toLowerCase()));
+  const srcFiles = fs.readdirSync(GITHUB_MUSIC).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
+  let copied = 0;
+  srcFiles.forEach(f => {
+    if (!diskFiles.has(f.toLowerCase())) {
+      try { 
+        fs.copyFileSync(path.join(GITHUB_MUSIC, f), path.join(MUSIC_DIR, f)); 
+        copied++;
+      } catch(e) {}
+    }
+  });
+  if (copied > 0) console.log(`  📋 Đã copy ${copied} bài mới từ GitHub/Music → public/music`);
 }
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
@@ -673,6 +677,10 @@ app.get('/api/songs', (req, res) => {
           size: stats.size,
           url: `/music/${encodeURIComponent(f)}`
         };
+      })
+      .sort((a, b) => {
+        // Natural sort: "nhạc 1" < "nhạc 2" < "nhạc 10"
+        return a.name.localeCompare(b.name, 'vi', { numeric: true, sensitivity: 'base' });
       });
     res.json(songs);
   } catch (e) {

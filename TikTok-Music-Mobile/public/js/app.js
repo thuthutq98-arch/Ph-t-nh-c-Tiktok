@@ -171,6 +171,10 @@ const licenseInfo = document.getElementById('licenseInfo');
 const trialBanner = document.getElementById('trialBanner');
 
 const mappingGiftName = document.getElementById('mappingGiftName');
+const customGiftSelectContainer = document.getElementById('customGiftSelectContainer');
+const customGiftSelectTrigger = document.getElementById('customGiftSelectTrigger');
+const customGiftSelectTriggerText = document.getElementById('customGiftSelectTriggerText');
+const customGiftSelectOptions = document.getElementById('customGiftSelectOptions');
 const mappingSongSelect = document.getElementById('mappingSongSelect');
 const addMappingBtn = document.getElementById('addMappingBtn');
 const mappingList = document.getElementById('mappingList');
@@ -292,24 +296,106 @@ function addKnownGift(name, diamonds, giftPictureUrl) {
 }
 
 function renderGiftDropdown() {
-  if (!mappingGiftName) return;
+  if (!customGiftSelectOptions) return;
   const currentVal = mappingGiftName.value;
-  mappingGiftName.innerHTML = '<option value="">-- Chọn quà tặng --</option>';
-  // Sort by diamonds descending
+  customGiftSelectOptions.innerHTML = '';
+
   const sorted = [...knownGifts].sort((a, b) => (b.diamonds || 0) - (a.diamonds || 0));
+  
   sorted.forEach(g => {
-    const opt = document.createElement('option');
-    opt.value = g.name;
-    opt.textContent = g.label || g.name;
-    mappingGiftName.appendChild(opt);
+    const opt = document.createElement('div');
+    opt.className = 'custom-select-option';
+    opt.setAttribute('data-value', g.name);
+    
+    let iconHtml = '';
+    const cleanLabel = g.label ? g.label : g.name;
+    
+    if (g.imageUrl) {
+      iconHtml = `<img src="${g.imageUrl}" alt="${g.name}" onerror="this.outerHTML='<span class=custom-select-option-icon>${getGiftIcon(g.name)}</span>'">`;
+    } else {
+      iconHtml = `<span class="custom-select-option-icon">${getGiftIcon(g.name)}</span>`;
+    }
+    
+    opt.innerHTML = `
+      ${iconHtml}
+      <span>${cleanLabel}</span>
+    `;
+    
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectGiftOption(g.name, cleanLabel, g.imageUrl);
+    });
+    
+    customGiftSelectOptions.appendChild(opt);
   });
+
   // Manual input option
-  const manualOpt = document.createElement('option');
-  manualOpt.value = '__MANUAL__';
-  manualOpt.textContent = '✏️ Nhập tên quà thủ công...';
-  mappingGiftName.appendChild(manualOpt);
-  // Restore value
-  if (currentVal) mappingGiftName.value = currentVal;
+  const manualOpt = document.createElement('div');
+  manualOpt.className = 'custom-select-option';
+  manualOpt.setAttribute('data-value', '__MANUAL__');
+  manualOpt.innerHTML = `
+    <span class="custom-select-option-icon">✏️</span>
+    <span>Nhập tên quà thủ công...</span>
+  `;
+  manualOpt.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectGiftOption('__MANUAL__', '✏️ Nhập tên quà thủ công...', null);
+  });
+  customGiftSelectOptions.appendChild(manualOpt);
+
+  // Restore active value visually
+  if (currentVal) {
+    const found = sorted.find(g => g.name === currentVal);
+    if (found) {
+      selectGiftOption(found.name, found.label, found.imageUrl, true);
+    } else if (currentVal === '__MANUAL__') {
+      selectGiftOption('__MANUAL__', '✏️ Nhập tên quà thủ công...', null, true);
+    } else {
+      selectGiftOption(currentVal, currentVal, null, true);
+    }
+  } else {
+    resetGiftDropdown();
+  }
+}
+
+function selectGiftOption(value, label, imageUrl, skipEventTrigger = false) {
+  mappingGiftName.value = value;
+  
+  let triggerHtml = '';
+  if (value === '') {
+    triggerHtml = '<span>-- Chọn quà tặng --</span>';
+  } else if (imageUrl) {
+    triggerHtml = `
+      <div class="custom-select-trigger-content">
+        <img src="${imageUrl}" alt="${value}" onerror="this.outerHTML='<span>${getGiftIcon(value)}</span>'">
+        <span>${label}</span>
+      </div>
+    `;
+  } else {
+    triggerHtml = `
+      <div class="custom-select-trigger-content">
+        <span>${getGiftIcon(value)}</span>
+        <span>${label}</span>
+      </div>
+    `;
+  }
+  
+  customGiftSelectTriggerText.innerHTML = triggerHtml;
+  customGiftSelectContainer.classList.remove('active');
+  
+  // Show/hide manual input
+  if (value === '__MANUAL__') {
+    customGiftGroup.style.display = 'block';
+    if (!skipEventTrigger) customGiftInput.focus();
+  } else {
+    customGiftGroup.style.display = 'none';
+  }
+}
+
+function resetGiftDropdown() {
+  mappingGiftName.value = '';
+  customGiftSelectTriggerText.innerHTML = '<span>-- Chọn quà tặng --</span>';
+  customGiftGroup.style.display = 'none';
 }
 
 // ========================================
@@ -1300,17 +1386,20 @@ function setupEventListeners() {
     });
   });
 
-  // Gift dropdown: show/hide manual input
-  if (mappingGiftName) {
-    mappingGiftName.addEventListener('change', () => {
-      if (mappingGiftName.value === '__MANUAL__') {
-        customGiftGroup.style.display = 'block';
-        customGiftInput.focus();
-      } else {
-        customGiftGroup.style.display = 'none';
-      }
+  // Custom select triggers
+  if (customGiftSelectTrigger) {
+    customGiftSelectTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      customGiftSelectContainer.classList.toggle('active');
     });
   }
+
+  // Click away to close dropdown
+  document.addEventListener('click', () => {
+    if (customGiftSelectContainer) {
+      customGiftSelectContainer.classList.remove('active');
+    }
+  });
 
   // Add Mapping
   if (addMappingBtn) {
@@ -1328,9 +1417,8 @@ function setupEventListeners() {
       systemConfig.giftMappings[giftName] = songFilename;
       await saveConfig();
       renderMappingList();
-      mappingGiftName.value = '';
+      resetGiftDropdown();
       mappingSongSelect.value = '';
-      customGiftGroup.style.display = 'none';
       customGiftInput.value = '';
       addLog('system', 'success', `Đã liên kết quà "${giftName}" thành công!`);
     });

@@ -884,13 +884,18 @@ a {
 
 .gift-message {
   padding: 10px 14px;
-  background: rgba(255, 0, 80, 0.06);
+  background: linear-gradient(135deg, rgba(255, 0, 80, 0.08) 0%, rgba(255, 100, 0, 0.05) 100%);
   border-left: 3px solid var(--primary-color);
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  transition: background 0.2s;
+}
+
+.gift-message:hover {
+  background: linear-gradient(135deg, rgba(255, 0, 80, 0.14) 0%, rgba(255, 100, 0, 0.09) 100%);
 }
 
 .gift-message-info {
@@ -902,16 +907,26 @@ a {
 }
 
 .gift-icon-badge {
-  font-size: 1.3rem;
+  font-size: 1.6rem;
   flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
 }
 
 .gift-icon-img {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   object-fit: contain;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px;
+  filter: drop-shadow(0 2px 6px rgba(255, 0, 80, 0.35));
 }
 
 .diamond-count {
@@ -919,6 +934,10 @@ a {
   font-weight: 700;
   color: var(--warning-color);
   flex-shrink: 0;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.25);
+  border-radius: 20px;
+  padding: 2px 8px;
 }
 
 /* ---------- 13. Settings Tab ---------- */
@@ -1751,19 +1770,26 @@ a {
 }
 
 .custom-select-option img {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px;
+  filter: drop-shadow(0 1px 4px rgba(255, 0, 80, 0.25));
+  flex-shrink: 0;
 }
 
 .custom-select-option-icon {
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
 .translate-copy-btn:active {

@@ -208,6 +208,17 @@ if (fs.existsSync(GITHUB_MUSIC)) {
   if (copied > 0) console.log(`  📋 Đã copy ${copied} bài mới từ GitHub/Music → public/music`);
 }
 const CONFIG_FILE = path.join(__dirname, 'config.json');
+const GIFT_CACHE_FILE = path.join(__dirname, 'gift-cache.json');
+
+function loadGiftCache() {
+  try {
+    if (fs.existsSync(GIFT_CACHE_FILE)) return JSON.parse(fs.readFileSync(GIFT_CACHE_FILE, 'utf8'));
+  } catch(e) {}
+  return [];
+}
+function saveGiftCache(catalog) {
+  try { fs.writeFileSync(GIFT_CACHE_FILE, JSON.stringify(catalog, null, 2), 'utf8'); } catch(e) {}
+}
 
 // Sound effects directory (use public/sounds so GitHub files work)
 const SOUNDS_DIR = path.join(__dirname, 'public', 'sounds');
@@ -322,6 +333,12 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Gift cache API — trả về danh sách quà đã cache với ảnh thật từ TikTok
+app.get('/api/gift-cache', (req, res) => {
+  const cache = loadGiftCache();
+  res.json(cache);
+});
 
 // Music streaming with Range request support (required for iOS Safari)
 app.get('/music/:filename', (req, res) => {
@@ -818,6 +835,24 @@ app.post('/api/tiktok/connect', (req, res) => {
         room.connectionStatus = 'connected';
         io.to(roomId).emit('tiktok-status', { status: room.connectionStatus, username: roomId, roomId: state.roomId });
         io.to(roomId).emit('sys-log', { type: 'success', text: `Kết nối thành công tới Live của @${username} (Room: ${state.roomId})` });
+        
+        // Fetch all available gifts with real TikTok images
+        try {
+          room.tiktokConnection.getAvailableGifts().then(gifts => {
+            if (gifts && gifts.length > 0) {
+              const giftCatalog = gifts.map(g => ({
+                id: g.id,
+                name: g.name,
+                diamonds: g.diamond_count || g.diamondCount || 0,
+                imageUrl: g.image ? g.image.url_list?.[0] : (g.giftPictureUrl || g.icon?.url_list?.[0] || null)
+              })).filter(g => g.imageUrl);
+              io.to(roomId).emit('gift-catalog', giftCatalog);
+              // Lưu vào cache để dùng lần sau khi chưa connect
+              saveGiftCache(giftCatalog);
+              console.log(`  🎁 Đã tải ${giftCatalog.length} quà với ảnh thật từ TikTok (đã cache)`);
+            }
+          }).catch(() => {});
+        } catch(e) {}
       })
       .catch(err => {
         room.connectionStatus = 'disconnected';
@@ -837,8 +872,12 @@ app.post('/api/tiktok/connect', (req, res) => {
       const giftType = data.giftDetails ? data.giftDetails.giftType : (data.giftType || 1);
       const isStreak = giftType === 1;
       const isStreakEnd = data.repeatEnd === 1 || data.repeatEnd === true || data.repeatEnd === 'true';
+      // Get gift image URL from TikTok API
+      const giftPictureUrl = (data.giftDetails && data.giftDetails.giftPictureUrl) 
+        ? data.giftDetails.giftPictureUrl 
+        : (data.giftPictureUrl || null);
       if (!isStreak || isStreakEnd) {
-        io.to(roomId).emit('gift', { giftName, repeatCount, diamondCount, nickname, uniqueId, giftId: data.giftId, profilePictureUrl });
+        io.to(roomId).emit('gift', { giftName, repeatCount, diamondCount, nickname, uniqueId, giftId: data.giftId, profilePictureUrl, giftPictureUrl });
       }
     });
 
@@ -948,6 +987,44 @@ io.on('connection', (socket) => {
   });
 });
 
+// Auto-fetch gift catalog khi server khởi động (không cần live)
+async function autoFetchGiftCatalog() {
+  // Nếu đã có cache rồi thì không cần fetch lại
+  const existing = loadGiftCache();
+  if (existing && existing.length > 50) {
+    console.log(`  🎁 Gift cache sẵn sàng: ${existing.length} quà có ảnh TikTok.\n`);
+    return;
+  }
+
+  console.log('  🎁 Đang lấy danh sách quà TikTok (lần đầu)...');
+  try {
+    const tempConn = new TikTokLiveConnection('_placeholder_', { enableExtendedGiftInfo: true });
+    const response = await tempConn.webClient.getJsonObjectFromWebcastApi('gift/list/', {
+      aid: '1988',
+      app_name: 'musical_ly',
+      device_platform: 'web',
+      browser_language: 'vi-VN',
+    });
+
+    const gifts = response?.data?.gifts;
+    if (!gifts || gifts.length === 0) throw new Error('Empty gift list');
+
+    const catalog = gifts
+      .map(g => ({
+        id: g.id,
+        name: g.name,
+        diamonds: g.diamond_count || g.diamondCount || 0,
+        imageUrl: g.image?.url_list?.[0] || g.icon?.url_list?.[0] || null,
+      }))
+      .filter(g => g.name && g.imageUrl);
+
+    saveGiftCache(catalog);
+    console.log(`  ✅ Đã lấy ${catalog.length} quà TikTok với ảnh thật!\n`);
+  } catch (err) {
+    console.log(`  ⚠️ Không lấy được gift catalog: ${err.message}\n`);
+  }
+}
+
 // Start server
 const LAN_IP = getLanIp();
 server.listen(PORT, '0.0.0.0', () => {
@@ -969,4 +1046,7 @@ server.listen(PORT, '0.0.0.0', () => {
   } catch(e) {
     console.log(`  ⚠️ Không thể đọc thư mục nhạc: ${e.message}`);
   }
+
+  // Tự động fetch gift catalog sau 2 giây (không chặn server)
+  setTimeout(() => autoFetchGiftCatalog(), 2000);
 });

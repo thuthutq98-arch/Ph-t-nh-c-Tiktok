@@ -275,6 +275,40 @@ function saveKnownGifts() {
   try { localStorage.setItem('tiktok_known_gifts', JSON.stringify(knownGifts)); } catch(e) {}
 }
 
+// Load gift cache từ server (ảnh thật đã cache từ TikTok)
+async function loadGiftCacheFromServer() {
+  try {
+    const res = await fetch('/api/gift-cache');
+    if (!res.ok) return;
+    const catalog = await res.json();
+    if (!catalog || !catalog.length) return;
+    let updated = false;
+    catalog.forEach(g => {
+      if (!g.name || !g.imageUrl) return;
+      const existing = knownGifts.find(kg => kg.name.toLowerCase() === g.name.toLowerCase());
+      if (existing) {
+        if (!existing.imageUrl) {
+          existing.imageUrl = g.imageUrl;
+          updated = true;
+        }
+      } else {
+        knownGifts.push({
+          name: g.name,
+          label: g.name + (g.diamonds ? ` (${g.diamonds}💸)` : ''),
+          diamonds: g.diamonds || 0,
+          imageUrl: g.imageUrl
+        });
+        updated = true;
+      }
+    });
+    if (updated) {
+      saveKnownGifts();
+      renderGiftDropdown();
+      renderMappingList();
+    }
+  } catch(e) {}
+}
+
 function addKnownGift(name, diamonds, giftPictureUrl) {
   if (!name) return;
   const existing = knownGifts.find(g => g.name.toLowerCase() === name.toLowerCase());
@@ -412,6 +446,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Load known gifts from localStorage
   loadKnownGifts();
+  // Load gift cache từ server (ảnh thật từ TikTok đã cache)
+  loadGiftCacheFromServer();
   renderGiftDropdown();
 
   // Restore admin password from localStorage
@@ -1902,9 +1938,9 @@ function renderMappingList() {
     const known = knownGifts.find(g => g.name.toLowerCase() === giftName.toLowerCase());
     let iconHtml;
     if (known && known.imageUrl) {
-      iconHtml = `<img src="${known.imageUrl}" class="gift-icon-img" style="width:36px;height:36px;" alt="${giftName}" onerror="this.outerHTML='<span class=song-icon style=font-size:1.4rem>${getGiftIcon(giftName)}</span>'">`;
+      iconHtml = `<img src="${known.imageUrl}" class="gift-icon-img" alt="${giftName}" onerror="this.outerHTML='<span class=gift-icon-badge>${getGiftIcon(giftName)}</span>'">`;
     } else {
-      iconHtml = `<span class="song-icon" style="font-size: 1.4rem;">${getGiftIcon(giftName)}</span>`;
+      iconHtml = `<span class="gift-icon-badge">${getGiftIcon(giftName)}</span>`;
     }
     
     card.innerHTML = `

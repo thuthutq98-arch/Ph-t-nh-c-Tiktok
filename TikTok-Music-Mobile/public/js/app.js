@@ -334,7 +334,7 @@ function renderGiftDropdown() {
   const currentVal = mappingGiftName.value;
   customGiftSelectOptions.innerHTML = '';
 
-  const sorted = [...knownGifts].sort((a, b) => (b.diamonds || 0) - (a.diamonds || 0));
+  const sorted = [...knownGifts].sort((a, b) => (a.diamonds || 0) - (b.diamonds || 0));
   
   sorted.forEach(g => {
     const opt = document.createElement('div');

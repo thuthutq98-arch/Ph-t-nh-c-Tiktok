@@ -1642,195 +1642,367 @@ function renderLibraryList() {
       </div>
     `;
 
-    // Trim panel (hidden by default) with live player
+    // Trim panel (hidden by default) — Drag Handle Design
     const trimPanel = document.createElement('div');
     trimPanel.className = 'trim-panel';
     trimPanel.id = `trim-${song.filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
     trimPanel.style.display = 'none';
+
+    const safeId = song.filename.replace(/[^a-zA-Z0-9]/g, '_');
+    const startPct = hasTrim ? (trim.start / 1) * 0 : 0; // will be set by JS
+    const endPct = 100;
+
     trimPanel.innerHTML = `
-      <div class="trim-player">
-        <div class="trim-player-row">
-          <button class="btn-trim-play" data-file="${song.filename}" onclick="trimPreviewToggle('${song.filename}')">
-            <i class="fa-solid fa-play"></i>
-          </button>
-          <div class="trim-progress-wrap" data-file="${song.filename}" onclick="trimSeek(event, '${song.filename}')">
-            <div class="trim-progress-bar" id="trimBar-${song.filename.replace(/[^a-zA-Z0-9]/g, '_')}"></div>
-            ${hasTrim ? `<div class="trim-region" id="trimRegion-${song.filename.replace(/[^a-zA-Z0-9]/g, '_')}" style="left:0%;width:100%"></div>` : ''}
-          </div>
-          <span class="trim-time-label" id="trimTime-${song.filename.replace(/[^a-zA-Z0-9]/g, '_')}">0:00</span>
+      <div class="trim-header">
+        <span class="trim-header-title">✂️ Kéo tay cầm để chọn đoạn phát</span>
+        <span class="trim-duration-badge" id="trimDur-${safeId}">--</span>
+      </div>
+
+      <div class="trim-timeline-wrap" id="trimWrap-${safeId}" data-file="${song.filename}">
+        <div class="trim-track-bg"></div>
+        <div class="trim-region-fill" id="trimFill-${safeId}"></div>
+        <div class="trim-playhead" id="trimHead-${safeId}"></div>
+        <div class="trim-handle trim-handle-start" id="trimHS-${safeId}" data-file="${song.filename}" data-type="start" style="left:0%">
+          <div class="trim-handle-line"></div>
+          <div class="trim-handle-label" id="trimStartLbl-${safeId}">${formatTrimTime(trim.start) || '0:00'}</div>
         </div>
-        <div class="trim-mark-buttons">
-          <button class="btn-trim-mark start" onclick="trimMarkPoint('${song.filename}', 'start')">
-            <i class="fa-solid fa-arrow-right-to-bracket"></i> Bắt đầu: <span id="trimStart-${song.filename.replace(/[^a-zA-Z0-9]/g, '_')}">${formatTrimTime(trim.start) || '0:00'}</span>
-          </button>
-          <button class="btn-trim-mark end" onclick="trimMarkPoint('${song.filename}', 'end')">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i> Kết thúc: <span id="trimEnd-${song.filename.replace(/[^a-zA-Z0-9]/g, '_')}">${formatTrimTime(trim.end) || 'Hết'}</span>
-          </button>
-        </div>
-        <div class="trim-action-row">
-          <button class="btn-trim-save" onclick="applyTrimFromMarks('${song.filename}')">
-            <i class="fa-solid fa-check"></i> Lưu
-          </button>
-          ${hasTrim ? `<button class="btn-trim-reset" onclick="resetTrim('${song.filename}')"><i class="fa-solid fa-rotate-left"></i> Đặt lại</button>` : ''}
+        <div class="trim-handle trim-handle-end" id="trimHE-${safeId}" data-file="${song.filename}" data-type="end" style="left:100%">
+          <div class="trim-handle-line"></div>
+          <div class="trim-handle-label" id="trimEndLbl-${safeId}">${trim.end > 0 ? formatTrimTime(trim.end) : 'Hết'}</div>
         </div>
       </div>
+
+      <div class="trim-time-row">
+        <span class="trim-time-start" id="trimTS-${safeId}">▶ ${formatTrimTime(trim.start) || '0:00'}</span>
+        <span class="trim-time-current" id="trimTC-${safeId}">🎵 0:00</span>
+        <span class="trim-time-end" id="trimTE-${safeId}">⏹ ${trim.end > 0 ? formatTrimTime(trim.end) : 'Hết bài'}</span>
+      </div>
+
+      <div class="trim-controls">
+        <button class="btn-trim-full" id="btnTrimFull-${safeId}" data-file="${song.filename}" onclick="trimFullToggle('${song.filename}')">
+          <i class="fa-solid fa-play"></i>
+        </button>
+        <button class="btn-trim-preview-sel" onclick="trimPreviewSelection('${song.filename}')">
+          <i class="fa-solid fa-scissors"></i> Nghe đoạn
+        </button>
+        <button class="btn-trim-save" onclick="applyTrimFromMarks('${song.filename}')">
+          <i class="fa-solid fa-check"></i> Lưu
+        </button>
+        ${hasTrim ? `<button class="btn-trim-reset" onclick="resetTrim('${song.filename}')"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
+      </div>
     `;
+
 
     card.appendChild(trimPanel);
     libraryList.appendChild(card);
   });
 }
 
-// Trim preview audio system
+// ======================================================
+// TRIM SYSTEM v2 — Drag Handle (Touch + Mouse)
+// ======================================================
 let trimAudio = null;
 let trimCurrentFile = null;
-let trimMarks = {}; // { filename: { start, end } }
+let trimMarks = {}; // { filename: { start: sec, end: sec } }
+let trimDragging = null; // { filename, type: 'start'|'end' }
 
-// Toggle trim panel + stop audio when closing
+// Toggle trim panel
 window.toggleTrimPanel = (filename) => {
-  const panelId = `trim-${filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
+  const panelId = `trim-${safeId}`;
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  
+
   const isOpening = panel.style.display === 'none';
-  
-  // Close all other trim panels
+
+  // Close all other panels + stop audio
   document.querySelectorAll('.trim-panel').forEach(p => {
     if (p.id !== panelId) p.style.display = 'none';
   });
-  
+  if (trimAudio && trimCurrentFile !== filename) {
+    trimAudio.pause(); trimAudio = null; trimCurrentFile = null;
+  }
+
   if (isOpening) {
     panel.style.display = 'block';
-    // Load existing trim into marks
+    // Load existing marks
     const trim = getSongTrim(filename);
     trimMarks[filename] = { start: trim.start || 0, end: trim.end || 0 };
+    // Init drag handles after DOM render
+    requestAnimationFrame(() => initTrimHandles(filename));
   } else {
     panel.style.display = 'none';
     if (trimAudio && trimCurrentFile === filename) {
-      trimAudio.pause();
-      trimAudio = null;
-      trimCurrentFile = null;
+      trimAudio.pause(); trimAudio = null; trimCurrentFile = null;
     }
   }
 };
 
-// Play/pause trim preview
-window.trimPreviewToggle = (filename) => {
+// Init drag handle positions + bind events
+function initTrimHandles(filename) {
   const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
-  
+  const wrap = document.getElementById(`trimWrap-${safeId}`);
+  const hsEl = document.getElementById(`trimHS-${safeId}`);
+  const heEl = document.getElementById(`trimHE-${safeId}`);
+  if (!wrap || !hsEl || !heEl) return;
+
+  const marks = trimMarks[filename] || { start: 0, end: 0 };
+
+  // Load audio to get duration for positioning
+  if (trimAudio && trimCurrentFile === filename) {
+    const dur = trimAudio.duration || 0;
+    if (dur > 0) {
+      positionHandles(filename, dur);
+      return;
+    }
+  }
+
+  // Load audio just for duration info
+  const tempAudio = new Audio('/music/' + encodeURIComponent(filename));
+  tempAudio.addEventListener('loadedmetadata', () => {
+    const dur = tempAudio.duration;
+    positionHandles(filename, dur);
+    updateDurationBadge(filename, dur);
+    tempAudio.src = '';
+  });
+
+  // Bind pointer events on the two handles
+  [hsEl, heEl].forEach(el => {
+    el.addEventListener('pointerdown', onHandlePointerDown);
+  });
+
+  // Tap on timeline to seek (not on handles)
+  wrap.addEventListener('pointerdown', onTimelineTap);
+}
+
+function positionHandles(filename, dur) {
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
+  const marks = trimMarks[filename] || { start: 0, end: 0 };
+  const startPct = dur > 0 ? (marks.start / dur) * 100 : 0;
+  const endPct = dur > 0 ? (marks.end > 0 ? (marks.end / dur) * 100 : 100) : 100;
+
+  const hsEl = document.getElementById(`trimHS-${safeId}`);
+  const heEl = document.getElementById(`trimHE-${safeId}`);
+  if (hsEl) hsEl.style.left = `${startPct}%`;
+  if (heEl) heEl.style.left = `${endPct}%`;
+
+  updateTrimFill(filename, startPct, endPct);
+  updateTrimLabels(filename, marks.start, marks.end > 0 ? marks.end : null, dur);
+}
+
+function updateTrimFill(filename, startPct, endPct) {
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
+  const fill = document.getElementById(`trimFill-${safeId}`);
+  if (fill) {
+    fill.style.left = `${startPct}%`;
+    fill.style.width = `${endPct - startPct}%`;
+  }
+}
+
+function updateTrimLabels(filename, startSec, endSec, dur) {
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
+
+  const slbl = document.getElementById(`trimStartLbl-${safeId}`);
+  const elbl = document.getElementById(`trimEndLbl-${safeId}`);
+  const ts = document.getElementById(`trimTS-${safeId}`);
+  const te = document.getElementById(`trimTE-${safeId}`);
+  const durBadge = document.getElementById(`trimDur-${safeId}`);
+
+  const startStr = formatTime(startSec);
+  const endStr = endSec !== null ? formatTime(endSec) : 'Hết';
+
+  if (slbl) slbl.textContent = startStr;
+  if (elbl) elbl.textContent = endStr;
+  if (ts) ts.textContent = `▶ ${startStr}`;
+  if (te) te.textContent = `⏹ ${endSec !== null ? formatTime(endSec) : 'Hết bài'}`;
+
+  // Duration badge
+  if (durBadge && dur > 0) {
+    const selDur = (endSec !== null ? endSec : dur) - startSec;
+    if (selDur > 0) durBadge.textContent = formatTime(selDur);
+  }
+}
+
+function updateDurationBadge(filename, dur) {
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
+  const marks = trimMarks[filename] || { start: 0, end: 0 };
+  const selDur = (marks.end > 0 ? marks.end : dur) - marks.start;
+  const badge = document.getElementById(`trimDur-${safeId}`);
+  if (badge && selDur > 0) badge.textContent = formatTime(selDur);
+}
+
+// === DRAG HANDLE EVENTS ===
+function onHandlePointerDown(e) {
+  e.stopPropagation();
+  const el = e.currentTarget;
+  const filename = el.dataset.file;
+  const type = el.dataset.type;
+  trimDragging = { filename, type, el };
+  el.setPointerCapture(e.pointerId);
+  el.addEventListener('pointermove', onHandlePointerMove);
+  el.addEventListener('pointerup', onHandlePointerUp);
+}
+
+function onHandlePointerMove(e) {
+  if (!trimDragging) return;
+  const { filename, type, el } = trimDragging;
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
+  const wrap = document.getElementById(`trimWrap-${safeId}`);
+  if (!wrap) return;
+
+  const rect = wrap.getBoundingClientRect();
+  let pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+
+  const marks = trimMarks[filename] || { start: 0, end: 0 };
+  const dur = trimAudio && trimCurrentFile === filename ? (trimAudio.duration || 0) : 0;
+
+  const hsEl = document.getElementById(`trimHS-${safeId}`);
+  const heEl = document.getElementById(`trimHE-${safeId}`);
+  const startPct = hsEl ? parseFloat(hsEl.style.left) : 0;
+  const endPct = heEl ? parseFloat(heEl.style.left) : 100;
+
+  if (type === 'start') {
+    const clampedPct = Math.min(pct, endPct - 2);
+    el.style.left = `${clampedPct}%`;
+    if (dur > 0) marks.start = (clampedPct / 100) * dur;
+    updateTrimFill(filename, clampedPct, endPct);
+    updateTrimLabels(filename, marks.start, marks.end > 0 ? marks.end : null, dur);
+  } else {
+    const clampedPct = Math.max(pct, startPct + 2);
+    el.style.left = `${clampedPct}%`;
+    if (dur > 0) marks.end = clampedPct >= 99 ? 0 : (clampedPct / 100) * dur;
+    updateTrimFill(filename, startPct, clampedPct);
+    updateTrimLabels(filename, marks.start, marks.end > 0 ? marks.end : null, dur);
+  }
+
+  trimMarks[filename] = marks;
+}
+
+function onHandlePointerUp(e) {
+  if (!trimDragging) return;
+  const { el } = trimDragging;
+  el.removeEventListener('pointermove', onHandlePointerMove);
+  el.removeEventListener('pointerup', onHandlePointerUp);
+  trimDragging = null;
+}
+
+// Tap on timeline to seek
+function onTimelineTap(e) {
+  if (e.target.classList.contains('trim-handle') || e.target.closest('.trim-handle')) return;
+  const wrap = e.currentTarget;
+  const filename = wrap.dataset.file;
+  if (!trimAudio || trimCurrentFile !== filename) return;
+  const rect = wrap.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  trimAudio.currentTime = pct * (trimAudio.duration || 0);
+}
+
+// Play/pause FULL song
+window.trimFullToggle = (filename) => {
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
+  const btn = document.getElementById(`btnTrimFull-${safeId}`);
+
   if (trimAudio && trimCurrentFile === filename && !trimAudio.paused) {
-    // Pause
     trimAudio.pause();
-    document.querySelector(`.btn-trim-play[data-file="${filename}"] i`).className = 'fa-solid fa-play';
+    if (btn) { btn.classList.remove('playing'); btn.innerHTML = '<i class="fa-solid fa-play"></i>'; }
     return;
   }
-  
-  // Stop previous
+
   if (trimAudio && trimCurrentFile !== filename) {
-    trimAudio.pause();
-    trimAudio = null;
+    trimAudio.pause(); trimAudio = null;
+    // Reset old button
+    document.querySelectorAll('.btn-trim-full.playing').forEach(b => {
+      b.classList.remove('playing'); b.innerHTML = '<i class="fa-solid fa-play"></i>';
+    });
   }
-  
+
   if (!trimAudio) {
     trimAudio = new Audio('/music/' + encodeURIComponent(filename));
-    trimAudio.volume = 0.6;
+    trimAudio.volume = 0.7;
     trimCurrentFile = filename;
-    
+
+    trimAudio.addEventListener('loadedmetadata', () => {
+      const dur = trimAudio.duration;
+      positionHandles(filename, dur);
+      updateDurationBadge(filename, dur);
+      // Init drag events after audio loaded
+      const hsEl = document.getElementById(`trimHS-${safeId}`);
+      const heEl = document.getElementById(`trimHE-${safeId}`);
+      const wrap = document.getElementById(`trimWrap-${safeId}`);
+      if (hsEl && !hsEl._trimBound) { hsEl._trimBound = true; hsEl.addEventListener('pointerdown', onHandlePointerDown); }
+      if (heEl && !heEl._trimBound) { heEl._trimBound = true; heEl.addEventListener('pointerdown', onHandlePointerDown); }
+      if (wrap && !wrap._trimBound) { wrap._trimBound = true; wrap.addEventListener('pointerdown', onTimelineTap); }
+    });
+
     trimAudio.addEventListener('timeupdate', () => {
       if (!trimAudio) return;
       const cur = trimAudio.currentTime;
       const dur = trimAudio.duration || 1;
-      const barEl = document.getElementById(`trimBar-${safeId}`);
-      const timeEl = document.getElementById(`trimTime-${safeId}`);
-      if (barEl) barEl.style.width = `${(cur / dur) * 100}%`;
-      if (timeEl) timeEl.textContent = formatTime(cur);
-      
-      // Update region visualization
-      updateTrimRegion(filename);
+      const head = document.getElementById(`trimHead-${safeId}`);
+      const tc = document.getElementById(`trimTC-${safeId}`);
+      if (head) head.style.left = `${(cur / dur) * 100}%`;
+      if (tc) tc.textContent = `🎵 ${formatTime(cur)}`;
     });
-    
+
     trimAudio.addEventListener('ended', () => {
-      document.querySelector(`.btn-trim-play[data-file="${filename}"] i`).className = 'fa-solid fa-play';
+      if (btn) { btn.classList.remove('playing'); btn.innerHTML = '<i class="fa-solid fa-play"></i>'; }
     });
   }
-  
+
   trimAudio.play().catch(() => {});
-  document.querySelector(`.btn-trim-play[data-file="${filename}"] i`).className = 'fa-solid fa-pause';
+  if (btn) { btn.classList.add('playing'); btn.innerHTML = '<i class="fa-solid fa-pause"></i>'; }
 };
 
-// Seek by clicking on progress bar
-window.trimSeek = (event, filename) => {
-  if (!trimAudio || trimCurrentFile !== filename) {
-    trimPreviewToggle(filename); // Start playing first
-    return;
-  }
-  const wrap = event.currentTarget;
-  const rect = wrap.getBoundingClientRect();
-  const pct = (event.clientX - rect.left) / rect.width;
-  trimAudio.currentTime = pct * (trimAudio.duration || 0);
-};
-
-// Mark current time as start or end
-window.trimMarkPoint = (filename, type) => {
+// Preview chỉ đoạn đã chọn
+window.trimPreviewSelection = (filename) => {
+  const marks = trimMarks[filename] || { start: 0, end: 0 };
   const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
-  if (!trimMarks[filename]) trimMarks[filename] = { start: 0, end: 0 };
-  
-  const currentTime = (trimAudio && trimCurrentFile === filename) ? trimAudio.currentTime : 0;
-  
-  if (type === 'start') {
-    trimMarks[filename].start = currentTime;
-    const el = document.getElementById(`trimStart-${safeId}`);
-    if (el) el.textContent = formatTime(currentTime);
-  } else {
-    trimMarks[filename].end = currentTime;
-    const el = document.getElementById(`trimEnd-${safeId}`);
-    if (el) el.textContent = formatTime(currentTime);
+
+  // Stop current
+  if (trimAudio && trimCurrentFile === filename) {
+    trimAudio.pause(); trimAudio = null; trimCurrentFile = null;
   }
-  
-  updateTrimRegion(filename);
-  addLog('system', 'info', `✂️ Đã đánh dấu ${type === 'start' ? 'bắt đầu' : 'kết thúc'}: ${formatTime(currentTime)}`);
+
+  const audio = new Audio('/music/' + encodeURIComponent(filename));
+  audio.volume = 0.7;
+  trimAudio = audio;
+  trimCurrentFile = filename;
+
+  audio.addEventListener('loadedmetadata', () => {
+    const dur = audio.duration;
+    const startSec = marks.start || 0;
+    const endSec = marks.end > 0 ? marks.end : dur;
+
+    audio.currentTime = startSec;
+    audio.play().catch(() => {});
+
+    // Auto-stop at end point
+    const checkStop = setInterval(() => {
+      if (!trimAudio || trimAudio !== audio) { clearInterval(checkStop); return; }
+      if (audio.currentTime >= endSec - 0.1) {
+        audio.pause();
+        clearInterval(checkStop);
+        const btn = document.getElementById(`btnTrimFull-${safeId}`);
+        if (btn) { btn.classList.remove('playing'); btn.innerHTML = '<i class="fa-solid fa-play"></i>'; }
+      }
+    }, 100);
+
+    audio.addEventListener('timeupdate', () => {
+      const head = document.getElementById(`trimHead-${safeId}`);
+      const tc = document.getElementById(`trimTC-${safeId}`);
+      if (head) head.style.left = `${(audio.currentTime / dur) * 100}%`;
+      if (tc) tc.textContent = `🎵 ${formatTime(audio.currentTime)}`;
+    });
+  });
 };
 
-// Update visual trim region on progress bar
-function updateTrimRegion(filename) {
-  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '_');
-  let regionEl = document.getElementById(`trimRegion-${safeId}`);
-  const marks = trimMarks[filename];
-  if (!marks || !trimAudio) return;
-  
-  const dur = trimAudio.duration || 1;
-  const startPct = (marks.start / dur) * 100;
-  const endPct = marks.end > 0 ? (marks.end / dur) * 100 : 100;
-  
-  if (!regionEl) {
-    // Create region element
-    const wrap = document.querySelector(`.trim-progress-wrap[data-file="${filename}"]`);
-    if (wrap) {
-      regionEl = document.createElement('div');
-      regionEl.className = 'trim-region';
-      regionEl.id = `trimRegion-${safeId}`;
-      wrap.appendChild(regionEl);
-    }
-  }
-  
-  if (regionEl) {
-    regionEl.style.left = `${startPct}%`;
-    regionEl.style.width = `${endPct - startPct}%`;
-  }
-}
-
-// Save from live marks
+// Save marks
 window.applyTrimFromMarks = (filename) => {
   const marks = trimMarks[filename] || { start: 0, end: 0 };
   saveTrimSetting(filename, marks.start, marks.end);
-  
-  // Stop preview
   if (trimAudio && trimCurrentFile === filename) {
-    trimAudio.pause();
-    trimAudio = null;
-    trimCurrentFile = null;
+    trimAudio.pause(); trimAudio = null; trimCurrentFile = null;
   }
-  
   addLog('system', 'success', `✂️ Đã lưu: ${formatTime(marks.start)} → ${marks.end > 0 ? formatTime(marks.end) : 'hết bài'}`);
   renderLibraryList();
 };
@@ -1840,13 +2012,18 @@ window.resetTrim = (filename) => {
   saveTrimSetting(filename, 0, 0);
   delete trimMarks[filename];
   if (trimAudio && trimCurrentFile === filename) {
-    trimAudio.pause();
-    trimAudio = null;
-    trimCurrentFile = null;
+    trimAudio.pause(); trimAudio = null; trimCurrentFile = null;
   }
-  addLog('system', 'info', '↩️ Đã đặt lại phát toàn bộ bài');
+  addLog('system', 'info', '↩️ Đã đặt lại: phát toàn bộ bài');
   renderLibraryList();
 };
+
+// Legacy stubs (keep backward compat)
+window.trimPreviewToggle = window.trimFullToggle;
+window.trimSeek = () => {};
+window.trimMarkPoint = () => {};
+window.updateTrimRegion = () => {};
+
 
 function renderPlaylistList() {
   if (activePlaylist.length === 0) {

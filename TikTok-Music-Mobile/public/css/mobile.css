@@ -1383,19 +1383,172 @@ a {
   border-radius: 0 0 12px 12px;
 }
 
-.trim-player-row {
+/* Header */
+.trim-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
 
-.btn-trim-play {
-  width: 36px;
-  height: 36px;
+.trim-header-title {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.trim-duration-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+  background: rgba(0, 242, 254, 0.12);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-family: 'Outfit', monospace;
+}
+
+/* ===== DRAG HANDLE TIMELINE ===== */
+.trim-timeline-wrap {
+  position: relative;
+  height: 60px;
+  margin: 0 14px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.trim-track-bg {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+}
+
+.trim-region-fill {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 8px;
+  background: linear-gradient(90deg, rgba(0,230,118,0.55), rgba(0,242,254,0.45));
+  pointer-events: none;
+}
+
+.trim-playhead {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 2px;
+  pointer-events: none;
+  left: 0%;
+}
+
+/* Drag handles */
+.trim-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  z-index: 10;
+  transform: translateX(-50%);
+}
+
+.trim-handle:active { cursor: grabbing; }
+
+.trim-handle-line {
+  width: 5px;
+  height: 44px;
+  border-radius: 3px;
+}
+
+.trim-handle-start .trim-handle-line {
+  background: var(--success-color);
+  box-shadow: 0 0 10px rgba(0,230,118,0.7);
+}
+
+.trim-handle-end .trim-handle-line {
+  background: var(--primary-color);
+  box-shadow: 0 0 10px rgba(254,44,85,0.7);
+}
+
+.trim-handle-label {
+  position: absolute;
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: 'Outfit', monospace;
+  pointer-events: none;
+}
+
+.trim-handle-start .trim-handle-label {
+  top: 2px;
+  left: 8px;
+  color: var(--success-color);
+  background: rgba(0,230,118,0.15);
+}
+
+.trim-handle-end .trim-handle-label {
+  top: 2px;
+  right: 8px;
+  color: var(--primary-color);
+  background: rgba(254,44,85,0.15);
+}
+
+/* Time display below timeline */
+.trim-time-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 2px 10px;
+}
+
+.trim-time-start {
+  font-size: 0.72rem;
+  color: var(--success-color);
+  font-family: 'Outfit', monospace;
+  font-weight: 600;
+}
+
+.trim-time-current {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: 'Outfit', monospace;
+}
+
+.trim-time-end {
+  font-size: 0.72rem;
+  color: var(--primary-color);
+  font-family: 'Outfit', monospace;
+  font-weight: 600;
+}
+
+/* Action buttons */
+.trim-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.btn-trim-full {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: none;
-  background: var(--secondary-color);
-  color: #000;
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
   font-size: 0.85rem;
   cursor: pointer;
   flex-shrink: 0;
@@ -1405,52 +1558,9 @@ a {
   justify-content: center;
 }
 
-.btn-trim-play:active { transform: scale(0.9); }
-
-.trim-progress-wrap {
-  flex: 1;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.trim-progress-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--secondary-color), rgba(0, 242, 254, 0.4));
-  border-radius: 6px;
-  position: relative;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.trim-region {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  background: rgba(0, 230, 118, 0.15);
-  border-left: 2px solid var(--success-color);
-  border-right: 2px solid var(--primary-color);
-  z-index: 1;
-  pointer-events: none;
-}
-
-.trim-time-label {
-  font-size: 0.78rem;
-  color: var(--secondary-color);
-  font-family: 'Outfit', monospace;
-  min-width: 36px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.trim-mark-buttons {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
+.btn-trim-full.playing {
+  background: var(--secondary-color);
+  color: #000;
 }
 
 .btn-trim-mark {

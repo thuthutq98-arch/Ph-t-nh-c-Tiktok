@@ -119,8 +119,10 @@ let systemConfig = {
   giftTtsLang: 'en',
   playlist: [],
   autoPlay: true,
-  giftMappings: {}
+  giftMappings: {},
+  giftIdMappings: {}  // ID-based mapping (ngôn ngữ-agnostic)
 };
+let selectedGiftId = null; // ID của quà đang chọn trong dropdown
 
 // === Audio ===
 const audioPlayer = document.getElementById('mainAudioPlayer');
@@ -287,12 +289,12 @@ async function loadGiftCacheFromServer() {
       if (!g.name || !g.imageUrl) return;
       const existing = knownGifts.find(kg => kg.name.toLowerCase() === g.name.toLowerCase());
       if (existing) {
-        if (!existing.imageUrl) {
-          existing.imageUrl = g.imageUrl;
-          updated = true;
-        }
+        if (!existing.imageUrl) existing.imageUrl = g.imageUrl;
+        if (!existing.id && g.id) existing.id = g.id; // Cập nhật ID nếu chưa có
+        updated = true;
       } else {
         knownGifts.push({
+          id: g.id || null,          // Lưu gift ID
           name: g.name,
           label: g.name + (g.diamonds ? ` (${g.diamonds}💸)` : ''),
           diamonds: g.diamonds || 0,
@@ -309,12 +311,17 @@ async function loadGiftCacheFromServer() {
   } catch(e) {}
 }
 
-function addKnownGift(name, diamonds, giftPictureUrl) {
+function addKnownGift(name, diamonds, giftPictureUrl, giftId = null) {
   if (!name) return;
-  const existing = knownGifts.find(g => g.name.toLowerCase() === name.toLowerCase());
+  // Tìm theo ID trước (chính xác hơn), sau đó theo tên
+  const existing = knownGifts.find(g =>
+    (giftId && g.id && String(g.id) === String(giftId)) ||
+    g.name.toLowerCase() === name.toLowerCase()
+  );
   if (!existing) {
     const icon = getGiftIcon(name);
     knownGifts.push({ 
+      id: giftId || null,
       name, 
       label: `${icon} ${name}` + (diamonds ? ` (${diamonds}💎)` : ''), 
       diamonds: diamonds || 0,
@@ -322,10 +329,11 @@ function addKnownGift(name, diamonds, giftPictureUrl) {
     });
     saveKnownGifts();
     renderGiftDropdown();
-  } else if (giftPictureUrl && !existing.imageUrl) {
-    // Update image if we didn't have one before
-    existing.imageUrl = giftPictureUrl;
-    saveKnownGifts();
+  } else {
+    let changed = false;
+    if (giftPictureUrl && !existing.imageUrl) { existing.imageUrl = giftPictureUrl; changed = true; }
+    if (giftId && !existing.id) { existing.id = giftId; changed = true; } // Ghi nhớ ID
+    if (changed) saveKnownGifts();
   }
 }
 
@@ -357,7 +365,7 @@ function renderGiftDropdown() {
     
     opt.addEventListener('click', (e) => {
       e.stopPropagation();
-      selectGiftOption(g.name, cleanLabel, g.imageUrl);
+      selectGiftOption(g.name, cleanLabel, g.imageUrl, false, g.id || null);
     });
     
     customGiftSelectOptions.appendChild(opt);
@@ -392,8 +400,9 @@ function renderGiftDropdown() {
   }
 }
 
-function selectGiftOption(value, label, imageUrl, skipEventTrigger = false) {
+function selectGiftOption(value, label, imageUrl, skipEventTrigger = false, giftId = null) {
   mappingGiftName.value = value;
+  selectedGiftId = giftId; // Lưu gift ID để dùng khi save mapping
   
   let triggerHtml = '';
   if (value === '') {
@@ -815,8 +824,8 @@ function initSocket() {
   socket.on('gift', (data) => {
     addLog('gift', 'success', data);
 
-    // Auto-collect gift name + image for dropdown
-    addKnownGift(data.giftName, data.diamondCount, data.giftPictureUrl);
+    // Auto-collect gift name + image + ID for dropdown
+    addKnownGift(data.giftName, data.diamondCount, data.giftPictureUrl, data.giftId);
 
     // Gift TTS announcement (đọc MỌI quà, không phụ thuộc xu tối thiểu)
     if (systemConfig.giftTtsEnabled) {
@@ -875,11 +884,18 @@ function initSocket() {
 // ========================================
 function queueNextSong(giftData) {
   const giftNameClean = giftData.giftName.trim();
-  let songToQueue = null;
-
-  // 1. Check gift mapping
   let matchedFilename = null;
-  if (systemConfig.giftMappings) {
+
+  // 1a. Khớp theo Gift ID trước (CHÍNH XÁC, không phụ thuộc ngôn ngữ)
+  if (giftData.giftId && systemConfig.giftIdMappings) {
+    const idKey = String(giftData.giftId);
+    if (systemConfig.giftIdMappings[idKey]) {
+      matchedFilename = systemConfig.giftIdMappings[idKey];
+    }
+  }
+
+  // 1b. Khớp theo tên (fallback cho mapping cũ chưa có ID)
+  if (!matchedFilename && systemConfig.giftMappings) {
     if (systemConfig.giftMappings[giftNameClean]) {
       matchedFilename = systemConfig.giftMappings[giftNameClean];
     } else {
@@ -889,26 +905,42 @@ function queueNextSong(giftData) {
     }
   }
 
-  if (matchedFilename) {
-    const song = library.find(s => s.filename === matchedFilename);
-    if (song) {
-      songToQueue = { ...song };
-      addLog('system', 'info', `Quà "${giftNameClean}" → bài: ${song.name}`);
-    }
-  }
+  // 2. No mapping for this gift?
+  const hasMappings = systemConfig.giftMappings && Object.keys(systemConfig.giftMappings).length > 0;
 
-  // 2. Fallback to playlist sequential
-  if (!songToQueue) {
-    if (activePlaylist.length > 0) {
-      if (nextPlaylistIndex >= activePlaylist.length) nextPlaylistIndex = 0;
-      songToQueue = { ...activePlaylist[nextPlaylistIndex] };
-      nextPlaylistIndex++;
-    } else {
-      addLog('system', 'warning', `Nhận quà "${giftNameClean}" nhưng playlist trống!`);
+  if (!matchedFilename) {
+    if (hasMappings) {
+      // Người dùng đã cài mapping → quà này chưa cài → bỏ qua, không phát nhạc
+      // (Không log để tránh spam khi nhận nhiều quà nhỏ)
       return;
     }
+    // Chưa cài mapping nào → dùng playlist tuần tự (chế độ cũ)
+    if (activePlaylist.length > 0) {
+      if (nextPlaylistIndex >= activePlaylist.length) nextPlaylistIndex = 0;
+      const songToQueue = { ...activePlaylist[nextPlaylistIndex] };
+      nextPlaylistIndex++;
+      songToQueue.giftInfo = giftData;
+      songToQueue.queueId = Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      playbackQueue.push(songToQueue);
+      renderQueueList();
+      queueCountBadge.textContent = playbackQueue.length;
+      addLog('system', 'success', `🎵 Thêm: ${songToQueue.name} (bởi @${giftData.uniqueId})`);
+    } else {
+      addLog('system', 'warning', `Nhận quà "${giftNameClean}" nhưng playlist trống!`);
+    }
+    return;
   }
 
+  // 3. Đã có mapping → tìm bài trong thư viện
+  const song = library.find(s => s.filename === matchedFilename);
+  if (!song) {
+    // Bài đã xóa hoặc đổi tên → cảnh báo rõ ràng, KHÔNG phát bài khác
+    addLog('system', 'error', `⚠️ Quà "${giftNameClean}" → bài nhạc đã bị xóa! Vui lòng cài lại.`);
+    return;
+  }
+
+  // 4. Tất cả OK → thêm vào queue
+  const songToQueue = { ...song };
   songToQueue.giftInfo = giftData;
   songToQueue.queueId = Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
@@ -916,8 +948,9 @@ function queueNextSong(giftData) {
   renderQueueList();
   queueCountBadge.textContent = playbackQueue.length;
 
-  addLog('system', 'success', `Đã thêm: ${songToQueue.name} (bởi @${giftData.uniqueId})`);
+  addLog('system', 'success', `🎵 Quà "${giftNameClean}" → ${song.name} (bởi @${giftData.uniqueId})`);
 }
+
 
 let isProcessingQueue = false;
 
@@ -1451,6 +1484,12 @@ function setupEventListeners() {
       }
       systemConfig.giftMappings = systemConfig.giftMappings || {};
       systemConfig.giftMappings[giftName] = songFilename;
+      // Lưu thêm theo giftId nếu có (tránh lệch tên Anh/Việt)
+      if (selectedGiftId) {
+        systemConfig.giftIdMappings = systemConfig.giftIdMappings || {};
+        systemConfig.giftIdMappings[String(selectedGiftId)] = songFilename;
+      }
+      selectedGiftId = null;
       await saveConfig();
       renderMappingList();
       resetGiftDropdown();

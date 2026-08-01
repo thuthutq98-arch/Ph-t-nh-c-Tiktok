@@ -13,18 +13,67 @@ const crypto = require('crypto');
 const LICENSE_FILE = path.join(__dirname, 'license.json');
 const LICENSE_CONFIG_FILE = path.join(__dirname, 'license-config.json');
 const TRIAL_USED_FILE = path.join(__dirname, 'trial-used.json');
-const UNIVERSAL_TRIAL_KEY = 'TRIAL-FREE-3DAY-2026';
+const UNIVERSAL_TRIAL_KEY = 'TRIAL-FREE-1DAY-2026';
 
-// Track which devices have used the universal trial
-function loadTrialUsed() {
+// --- MONGODB (lưu trial-used bền vững, không mất khi Render restart) ---
+const { MongoClient } = require('mongodb');
+let mongoDb = null;
+
+async function connectMongo() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.log('[MongoDB] MONGODB_URI không có — dùng file fallback');
+    return;
+  }
   try {
-    if (fs.existsSync(TRIAL_USED_FILE)) return JSON.parse(fs.readFileSync(TRIAL_USED_FILE, 'utf8'));
-  } catch(e) {}
-  return {};
+    const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+    await client.connect();
+    mongoDb = client.db('tiktok_music');
+    console.log('[MongoDB] Kết nối thành công!');
+  } catch (e) {
+    console.error('[MongoDB] Lỗi kết nối:', e.message);
+  }
 }
-function saveTrialUsed(data) {
-  try { fs.writeFileSync(TRIAL_USED_FILE, JSON.stringify(data, null, 2), 'utf8'); } catch(e) {}
+
+async function getTrialRecord(deviceId) {
+  if (mongoDb) {
+    try {
+      return await mongoDb.collection('trial_used').findOne({ deviceId });
+    } catch(e) {}
+  }
+  // Fallback: file
+  const data = loadTrialUsed();
+  return data[deviceId] ? { deviceId, ...data[deviceId] } : null;
 }
+
+async function setTrialRecord(deviceId, record) {
+  if (mongoDb) {
+    try {
+      await mongoDb.collection('trial_used').updateOne(
+        { deviceId },
+        { $set: { deviceId, ...record } },
+        { upsert: true }
+      );
+      return;
+    } catch(e) {}
+  }
+  // Fallback: file
+  const data = loadTrialUsed();
+  data[deviceId] = record;
+  saveTrialUsed(data);
+}
+
+async function getAllTrialRecords() {
+  if (mongoDb) {
+    try {
+      return await mongoDb.collection('trial_used').find({}).toArray();
+    } catch(e) {}
+  }
+  // Fallback: file
+  const data = loadTrialUsed();
+  return Object.entries(data).map(([deviceId, v]) => ({ deviceId, ...v }));
+}
+
 
 function loadLicenseConfig() {
   const defaults = { salt: 'my-secret-tiktok-salt-2026', blockedMachines: [] };
@@ -285,8 +334,8 @@ app.use(cors());
 app.use(express.json());
 
 // Activation check middleware
-// *** ĐỔI THÀNH false ĐỂ BẬT LẠI LICENSE ***
-const BYPASS_LICENSE = true;
+// *** ĐỔI THÀNH true ĐỂ TẮT LICENSE (chế độ phát triển) ***
+const BYPASS_LICENSE = false;
 
 app.use((req, res, next) => {
   if (BYPASS_LICENSE) return next();
@@ -475,23 +524,22 @@ app.post('/api/activate', (req, res) => {
 
   // Check universal trial key
   if (cleanKey === UNIVERSAL_TRIAL_KEY && clientDeviceId) {
-    const trialUsed = loadTrialUsed();
-    if (trialUsed[clientDeviceId]) {
+    const record = await getTrialRecord(clientDeviceId);
+    if (record) {
       const today = getTodayStr();
-      if (today > trialUsed[clientDeviceId].expiryDate) {
+      if (today > record.expiryDate) {
         return res.status(400).json({ error: 'Máy này đã hết hạn dùng thử! Vui lòng liên hệ chủ phòng để nhận key kích hoạt.' });
       }
-      const daysLeft = Math.ceil((new Date(trialUsed[clientDeviceId].expiryDate) - new Date(today)) / 86400000);
-      return res.json({ success: true, type: 'trial', message: 'Đã kích hoạt dùng thử!', expiryDate: trialUsed[clientDeviceId].expiryDate, daysLeft });
+      const daysLeft = Math.ceil((new Date(record.expiryDate) - new Date(today)) / 86400000);
+      return res.json({ success: true, type: 'trial', message: 'Đã kích hoạt dùng thử!', expiryDate: record.expiryDate, daysLeft });
     }
-    // First time using trial for this device
+    // First time using trial for this device — 1 ngày
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 3);
+    expiryDate.setDate(expiryDate.getDate() + 1);
     const expiryDateStr = expiryDate.toISOString().slice(0, 10);
-    trialUsed[clientDeviceId] = { expiryDate: expiryDateStr, activatedAt: new Date().toISOString() };
-    saveTrialUsed(trialUsed);
+    await setTrialRecord(clientDeviceId, { expiryDate: expiryDateStr, activatedAt: new Date().toISOString() });
     const [y, m, d] = expiryDateStr.split('-');
-    return res.json({ success: true, type: 'trial', message: 'Kích hoạt dùng thử 3 ngày thành công!', expiryDate: expiryDateStr, expiryLabel: `${d}/${m}/${y}`, daysLeft: 3 });
+    return res.json({ success: true, type: 'trial', message: 'Kích hoạt dùng thử 1 ngày thành công!', expiryDate: expiryDateStr, expiryLabel: `${d}/${m}/${y}`, daysLeft: 1 });
   }
 
   // Check monthly key (server-side)
@@ -528,15 +576,14 @@ app.post('/api/activate', (req, res) => {
 });
 
 // --- STATS API (Public - only shows numbers) ---
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', async (req, res) => {
   const onlineCount = io.engine.clientCount || 0;
   const roomCount = rooms.size;
 
-  // Trial stats
-  const trialUsed = loadTrialUsed();
+  const records = await getAllTrialRecords();
   const today = getTodayStr();
   let trialTotal = 0, trialActive = 0, trialExpired = 0;
-  Object.values(trialUsed).forEach(t => {
+  records.forEach(t => {
     trialTotal++;
     if (today > t.expiryDate) trialExpired++;
     else trialActive++;
@@ -550,7 +597,7 @@ app.get('/api/stats', (req, res) => {
 });
 
 // --- STATS ADMIN (Chi tiết - chỉ admin xem được) ---
-app.post('/api/admin/stats', (req, res) => {
+app.post('/api/admin/stats', async (req, res) => {
   const { password } = req.body;
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
   if (password !== adminPassword) {
@@ -568,16 +615,16 @@ app.post('/api/admin/stats', (req, res) => {
     });
   });
 
-  const trialUsed = loadTrialUsed();
+  const records = await getAllTrialRecords();
   const today = getTodayStr();
   let trialTotal = 0, trialActive = 0, trialExpired = 0;
   const deviceList = [];
-  Object.entries(trialUsed).forEach(([deviceId, t]) => {
+  records.forEach(t => {
     trialTotal++;
     const isExpired = today > t.expiryDate;
     if (isExpired) trialExpired++;
     else trialActive++;
-    deviceList.push({ deviceId, startDate: t.startDate, expiryDate: t.expiryDate, expired: isExpired });
+    deviceList.push({ deviceId: t.deviceId, activatedAt: t.activatedAt, expiryDate: t.expiryDate, expired: isExpired });
   });
 
   res.json({
@@ -638,7 +685,7 @@ app.post('/api/admin/generate-key', (req, res) => {
     generatedKey = generateLicenseKey(targetMachineId, cfg.salt, getCurrentPeriod());
     expiryLabel = getPeriodLabel(getCurrentPeriod());
   } else {
-    const numDays = parseInt(days) || 30;
+    const numDays = parseInt(days) || 1; // Mặc định 1 ngày dùng thử
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + numDays);
     const expiryDateStr = expiryDate.toISOString().slice(0, 10);
@@ -1027,6 +1074,7 @@ async function autoFetchGiftCatalog() {
 
 // Start server
 const LAN_IP = getLanIp();
+connectMongo(); // Kết nối MongoDB Atlas
 server.listen(PORT, '0.0.0.0', () => {
   console.log('\n╔════════════════════════════════════════════════╗');
   console.log('║   🎵 TikTok Live Auto Music — Android Edition  ║');

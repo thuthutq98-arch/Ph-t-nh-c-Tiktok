@@ -173,7 +173,7 @@ function getLicenseStatus() {
   }
 }
 
-function verifyClientLicense(deviceId, key) {
+async function verifyClientLicense(deviceId, key) {
   if (process.env.BYPASS_LICENSE === 'true') {
     return { activated: true, reason: 'monthly' };
   }
@@ -189,10 +189,9 @@ function verifyClientLicense(deviceId, key) {
       return { activated: true, reason: 'monthly' };
     }
 
-    // Check universal trial key
+    // Check universal trial key (dùng MongoDB)
     if (cleanKey === UNIVERSAL_TRIAL_KEY) {
-      const trialUsed = loadTrialUsed();
-      const record = trialUsed[deviceId];
+      const record = await getTrialRecord(deviceId);
       if (record) {
         const today = getTodayStr();
         if (today > record.expiryDate) {
@@ -347,7 +346,7 @@ app.use(express.json());
 // *** ĐỔI THÀNH true ĐỂ TẮT LICENSE (chế độ phát triển) ***
 const BYPASS_LICENSE = false;
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (BYPASS_LICENSE) return next();
   const allowedPaths = [
     '/',
@@ -382,7 +381,7 @@ app.use((req, res, next) => {
     const clientDeviceId = req.headers['x-device-id'] || '';
     const clientLicenseKey = req.headers['x-license-key'] || '';
     
-    const licStatus = verifyClientLicense(clientDeviceId, clientLicenseKey);
+    const licStatus = await verifyClientLicense(clientDeviceId, clientLicenseKey);
     if (!licStatus.activated) {
       return res.status(401).json({ error: 'Thiết bị chưa kích hoạt bản quyền!', reason: licStatus.reason });
     }
@@ -709,9 +708,9 @@ app.post('/api/admin/generate-key', (req, res) => {
 
 app.get('/api/license-status', (req, res) => res.json(getLicenseStatus()));
 
-app.post('/api/verify-license', (req, res) => {
+app.post('/api/verify-license', async (req, res) => {
   const { deviceId, key } = req.body;
-  const status = verifyClientLicense(deviceId, key);
+  const status = await verifyClientLicense(deviceId, key);
   res.json(status);
 });
 

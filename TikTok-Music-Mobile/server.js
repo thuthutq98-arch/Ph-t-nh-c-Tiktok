@@ -523,7 +523,7 @@ app.get('/api/machine-id', (req, res) => {
   res.json({ machineId: getMachineId(), period, periodLabel: getPeriodLabel(period) });
 });
 
-app.post('/api/activate', (req, res) => {
+app.post('/api/activate', async (req, res) => {
   const { key, deviceId } = req.body;
   if (!key) return res.status(400).json({ error: 'Vui lòng cung cấp mã kích hoạt!' });
 

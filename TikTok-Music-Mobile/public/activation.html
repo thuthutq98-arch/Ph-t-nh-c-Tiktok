@@ -334,16 +334,15 @@
         <div class="period-badge" id="periodBadge"></div>
       </div>
 
-      <!-- TRIAL KEY BOX -->
       <div style="margin: 16px 0; padding: 16px; background: linear-gradient(135deg, rgba(0,230,118,0.08), rgba(0,242,254,0.08)); border: 1.5px solid rgba(0,230,118,0.3); border-radius: 14px; text-align: center;">
         <div style="font-size: 0.82rem; font-weight: 700; color: #00e676; margin-bottom: 6px;">
-          🎁 DÙNG THỬ MIỄN PHÍ 3 NGÀY
+          🎁 DÙNG THỬ MIỄN PHÍ 1 NGÀY
         </div>
         <div style="font-size: 0.72rem; color: #9aa0b9; margin-bottom: 10px;">
           Copy mã bên dưới và dán vào ô "Nhập Mã Kích Hoạt"
         </div>
         <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-          <code id="trialKeyText" style="font-family: 'Courier New', monospace; font-size: 0.95rem; font-weight: 700; color: #00f2fe; letter-spacing: 1px; background: rgba(0,0,0,0.3); padding: 8px 14px; border-radius: 8px; user-select: all;">TRIAL-FREE-3DAY-2026</code>
+          <code id="trialKeyText" style="font-family: 'Courier New', monospace; font-size: 0.95rem; font-weight: 700; color: #00f2fe; letter-spacing: 1px; background: rgba(0,0,0,0.3); padding: 8px 14px; border-radius: 8px; user-select: all;">TRIAL-FREE-1DAY-2026</code>
           <button id="copyTrialBtn" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px; background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.3); color: #00e676; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;" onclick="
             const k = document.getElementById('trialKeyText').textContent;
             navigator.clipboard.writeText(k).catch(() => {});
@@ -356,7 +355,7 @@
           </button>
         </div>
         <div style="font-size: 0.68rem; color: #ffb347; margin-top: 8px;">
-          ⚠️ Mỗi máy chỉ dùng được 1 lần. Hết 3 ngày cần key kích hoạt.
+          ⚠️ Mỗi máy chỉ dùng được 1 lần. Hết 1 ngày cần key kích hoạt.
         </div>
       </div>
 
@@ -376,6 +375,35 @@
       </div>
 
       <div class="status-msg" id="statusMsg"></div>
+
+      <!-- PRICING SECTION -->
+      <div style="margin-top: 24px; padding: 20px; background: linear-gradient(135deg, rgba(123,47,255,0.08), rgba(255,77,148,0.08)); border: 1.5px solid rgba(123,47,255,0.3); border-radius: 16px;">
+        <div style="text-align: center; margin-bottom: 14px;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: #c084fc; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">
+            ✨ Dùng lâu dài? Đăng ký ngay!
+          </div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: white; margin-bottom: 2px;">
+            99.000đ <span style="font-size: 0.75rem; font-weight: 400; color: #8888aa;">/ tháng</span>
+          </div>
+          <div style="font-size: 0.72rem; color: #8888aa;">Key riêng cho máy bạn · Không bị reset · Hỗ trợ tận tình</div>
+        </div>
+
+        <!-- QR CODE -->
+        <div style="text-align: center; margin-bottom: 14px;">
+          <div style="font-size: 0.75rem; color: #9aa0b9; margin-bottom: 10px;">Quét mã để chuyển khoản:</div>
+          <div id="qrPlaceholder" style="display: inline-block; background: white; border-radius: 12px; padding: 10px;">
+            <img src="/img/qr-payment.jpg" alt="QR Thanh toán" style="width: 160px; height: 160px; display: block; border-radius: 6px; object-fit: cover;">
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 700; color: #e0e0ff; margin-top: 8px;">HOANG MINH HIEU</div>
+        </div>
+
+        <!-- CONTACT -->
+        <div style="text-align: center; font-size: 0.78rem; color: #9aa0b9; line-height: 1.7;">
+          Sau khi chuyển khoản, nhắn <b style="color:#00f2fe">Machine ID</b> qua Zalo cho chủ phòng để nhận key.<br>
+          <a href="https://zalo.me/0374180562" style="color: #00e676; font-weight: 700; text-decoration: none;">💬 Zalo: 0374 180 562</a>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -494,7 +522,7 @@
 
       activateBtn.addEventListener('click', async () => {
         const key = keyInput.value.trim();
-        const isTrialKey = key.toUpperCase() === 'TRIAL-FREE-3DAY-2026';
+        const isTrialKey = key.toUpperCase() === 'TRIAL-FREE-1DAY-2026';
         if (!key) {
           showStatus('Nhập mã kích hoạt!', 'error');
           return;

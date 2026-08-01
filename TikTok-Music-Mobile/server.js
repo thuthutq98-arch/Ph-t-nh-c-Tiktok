@@ -567,8 +567,9 @@ app.post('/api/activate', async (req, res) => {
     }
   }
 
-  // Check trial key
-  const expiryDateStr = detectTrialKey(machineId, cfg.salt, cleanKey);
+  // Check trial key (dùng clientDeviceId trước, fallback về machineId)
+  const checkId = clientDeviceId || machineId;
+  const expiryDateStr = detectTrialKey(checkId, cfg.salt, cleanKey);
   if (expiryDateStr) {
     const today = getTodayStr();
     if (today > expiryDateStr) {

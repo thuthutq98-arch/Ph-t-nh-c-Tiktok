@@ -74,6 +74,16 @@ async function getAllTrialRecords() {
   return Object.entries(data).map(([deviceId, v]) => ({ deviceId, ...v }));
 }
 
+// Fallback file functions (dùng khi MongoDB chưa kết nối)
+function loadTrialUsed() {
+  try {
+    if (fs.existsSync(TRIAL_USED_FILE)) return JSON.parse(fs.readFileSync(TRIAL_USED_FILE, 'utf8'));
+  } catch(e) {}
+  return {};
+}
+function saveTrialUsed(data) {
+  try { fs.writeFileSync(TRIAL_USED_FILE, JSON.stringify(data, null, 2), 'utf8'); } catch(e) {}
+}
 
 function loadLicenseConfig() {
   const defaults = { salt: 'my-secret-tiktok-salt-2026', blockedMachines: [] };

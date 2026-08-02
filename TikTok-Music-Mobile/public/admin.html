@@ -180,14 +180,16 @@
 
         // Device table
         if (data.deviceList && data.deviceList.length > 0) {
-          document.getElementById('deviceTable').innerHTML = data.deviceList.map(d => `
+          document.getElementById('deviceTable').innerHTML = data.deviceList.map(d => {
+            const activated = d.activatedAt ? d.activatedAt.slice(0,10) : (d.startDate || '—');
+            return `
             <tr>
               <td style="font-family:monospace;font-size:0.75rem">${d.deviceId}</td>
-              <td>${d.startDate}</td>
+              <td>${activated}</td>
               <td>${d.expiryDate}</td>
               <td>${d.expired ? '<span class="badge-expired">Hết hạn</span>' : '<span class="badge-active">Đang dùng</span>'}</td>
-            </tr>
-          `).join('');
+            </tr>`;
+          }).join('');
         } else {
           document.getElementById('deviceTable').innerHTML = '<tr><td colspan="4" style="color:#9aa0b9">Chưa có thiết bị nào</td></tr>';
         }

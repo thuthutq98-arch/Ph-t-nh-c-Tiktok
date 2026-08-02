@@ -624,7 +624,8 @@ app.post('/api/admin/stats', async (req, res) => {
     roomList.push({
       name: id,
       clients: room.clients ? room.clients.size : 0,
-      tiktokConnected: room.connectionStatus === 'connected'
+      tiktokConnected: room.connectionStatus === 'connected',
+      tiktokUsername: room.tiktokUsername || id
     });
   });
 

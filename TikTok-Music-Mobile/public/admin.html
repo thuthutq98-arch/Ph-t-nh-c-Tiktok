@@ -106,8 +106,8 @@
 
     <h2>🏠 Phòng đang hoạt động</h2>
     <table>
-      <thead><tr><th>Tên phòng</th><th>Số người</th><th>TikTok Live</th></tr></thead>
-      <tbody id="roomTable"><tr><td colspan="3">Đang tải...</td></tr></tbody>
+      <thead><tr><th>Tên phòng</th><th>Số người</th><th>Kênh TikTok</th><th>Trạng thái</th></tr></thead>
+      <tbody id="roomTable"><tr><td colspan="4">Đang tải...</td></tr></tbody>
     </table>
 
     <h2>📱 Thiết bị đã dùng thử</h2>
@@ -171,6 +171,7 @@
             <tr>
               <td>@${r.name}</td>
               <td>${r.clients} người</td>
+              <td style="color:#00f2fe;font-weight:600">@${r.tiktokUsername || r.name}</td>
               <td>${r.tiktokConnected ? '<span class="badge-live">● LIVE</span>' : '<span class="badge-off">Offline</span>'}</td>
             </tr>
           `).join('');

@@ -352,10 +352,13 @@ app.use(async (req, res, next) => {
     '/',
     '/index.html',
     '/activation.html',
+    '/admin.html',
     '/api/activate',
     '/api/verify-license',
     '/api/machine-id',
     '/api/license-status',
+    '/api/stats',
+    '/api/admin/stats',
     '/admin-generator.html',
     '/api/admin/generate-key'
   ];

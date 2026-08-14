@@ -74,6 +74,36 @@ async function getAllTrialRecords() {
   return Object.entries(data).map(([deviceId, v]) => ({ deviceId, ...v }));
 }
 
+async function isDeviceBlocked(deviceId) {
+  if (mongoDb) {
+    try {
+      const rec = await mongoDb.collection('blocked_devices').findOne({ deviceId });
+      return !!rec;
+    } catch(e) {}
+  }
+  return false;
+}
+
+async function blockDevice(deviceId, reason) {
+  if (mongoDb) {
+    try {
+      await mongoDb.collection('blocked_devices').updateOne(
+        { deviceId },
+        { $set: { deviceId, reason: reason || 'Thu hồi bởi admin', blockedAt: new Date().toISOString() } },
+        { upsert: true }
+      );
+    } catch(e) {}
+  }
+}
+
+async function unblockDevice(deviceId) {
+  if (mongoDb) {
+    try {
+      await mongoDb.collection('blocked_devices').deleteOne({ deviceId });
+    } catch(e) {}
+  }
+}
+
 // Fallback file functions (dùng khi MongoDB chưa kết nối)
 function loadTrialUsed() {
   try {
@@ -178,6 +208,10 @@ async function verifyClientLicense(deviceId, key) {
     return { activated: true, reason: 'monthly' };
   }
   if (!deviceId || !key) return { activated: false, reason: 'not_activated' };
+
+  // Kiểm tra thiết bị bị chặn
+  const blocked = await isDeviceBlocked(deviceId);
+  if (blocked) return { activated: false, reason: 'blocked' };
 
   try {
     const cfg = loadLicenseConfig();
@@ -359,8 +393,10 @@ app.use(async (req, res, next) => {
     '/api/license-status',
     '/api/stats',
     '/api/admin/stats',
-    '/admin-generator.html',
-    '/api/admin/generate-key'
+    '/api/admin/generate-key',
+    '/api/admin/revoke-device',
+    '/api/admin/unblock-device',
+    '/admin-generator.html'
   ];
   if (
     allowedPaths.includes(req.path) ||
@@ -609,7 +645,7 @@ app.get('/api/stats', async (req, res) => {
   });
 });
 
-// --- STATS ADMIN (Chi tiết - chỉ admin xem được) ---
+// --- STATS ADMIN ---
 app.post('/api/admin/stats', async (req, res) => {
   const { password } = req.body;
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
@@ -633,13 +669,14 @@ app.post('/api/admin/stats', async (req, res) => {
   const today = getTodayStr();
   let trialTotal = 0, trialActive = 0, trialExpired = 0;
   const deviceList = [];
-  records.forEach(t => {
+  for (const t of records) {
     trialTotal++;
     const isExpired = today > t.expiryDate;
+    const isBlocked = await isDeviceBlocked(t.deviceId);
     if (isExpired) trialExpired++;
     else trialActive++;
-    deviceList.push({ deviceId: t.deviceId, activatedAt: t.activatedAt, expiryDate: t.expiryDate, expired: isExpired });
-  });
+    deviceList.push({ deviceId: t.deviceId, activatedAt: t.activatedAt, expiryDate: t.expiryDate, expired: isExpired, blocked: isBlocked });
+  }
 
   res.json({
     online: onlineCount,
@@ -677,6 +714,27 @@ app.get('/api/sounds', (req, res) => {
     const files = fs.readdirSync(SOUNDS_DIR).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
     res.json(files);
   } catch(e) { res.json([]); }
+});
+
+// --- REVOKE / UNBLOCK DEVICE ---
+app.post('/api/admin/revoke-device', async (req, res) => {
+  const { password, deviceId } = req.body;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  if (password !== adminPassword) return res.status(401).json({ error: 'Sai mật khẩu!' });
+  if (!deviceId) return res.status(400).json({ error: 'Thiếu deviceId!' });
+  await blockDevice(deviceId, 'Thu hồi bởi admin');
+  console.log(`[REVOKE] Đã chặn thiết bị: ${deviceId}`);
+  res.json({ success: true, message: `Đã thu hồi quyền của ${deviceId}` });
+});
+
+app.post('/api/admin/unblock-device', async (req, res) => {
+  const { password, deviceId } = req.body;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  if (password !== adminPassword) return res.status(401).json({ error: 'Sai mật khẩu!' });
+  if (!deviceId) return res.status(400).json({ error: 'Thiếu deviceId!' });
+  await unblockDevice(deviceId);
+  console.log(`[UNBLOCK] Đã mở lại thiết bị: ${deviceId}`);
+  res.json({ success: true, message: `Đã mở lại quyền cho ${deviceId}` });
 });
 
 app.post('/api/admin/generate-key', (req, res) => {

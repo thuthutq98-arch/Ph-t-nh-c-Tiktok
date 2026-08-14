@@ -73,6 +73,11 @@
     }
     th { background: rgba(0,242,254,0.1); color: #00f2fe; text-align: left; padding: 10px 12px; font-size: 0.8rem; }
     td { padding: 8px 12px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #ccc; }
+    .btn-revoke { background:#ff4d6d;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.72rem;font-weight:600; }
+    .btn-revoke:hover { background:#ff1744; }
+    .btn-unblock { background:#00c853;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.72rem;font-weight:600; }
+    .btn-unblock:hover { background:#00a040; }
+    .badge-blocked { background:#ff4d6d22;color:#ff4d6d;border:1px solid #ff4d6d55;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight: 600; }
     .badge-live { background: #00e676; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
     .badge-off { background: rgba(255,255,255,0.1); color: #9aa0b9; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
     .badge-active { background: rgba(0,230,118,0.15); color: #00e676; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
@@ -112,8 +117,8 @@
 
     <h2>📱 Thiết bị đã dùng thử</h2>
     <table>
-      <thead><tr><th>Device ID</th><th>Ngày bắt đầu</th><th>Ngày hết hạn</th><th>Trạng thái</th></tr></thead>
-      <tbody id="deviceTable"><tr><td colspan="4">Đang tải...</td></tr></tbody>
+      <thead><tr><th>Device ID</th><th>Ngày bắt đầu</th><th>Ngày hết hạn</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+      <tbody id="deviceTable"><tr><td colspan="5">Đang tải...</td></tr></tbody>
     </table>
   </div>
 
@@ -183,18 +188,54 @@
         if (data.deviceList && data.deviceList.length > 0) {
           document.getElementById('deviceTable').innerHTML = data.deviceList.map(d => {
             const activated = d.activatedAt ? d.activatedAt.slice(0,10) : (d.startDate || '—');
+            const isBlocked = d.blocked;
+            const statusBadge = isBlocked
+              ? '<span class="badge-blocked">⛔ Bị chặn</span>'
+              : (d.expired ? '<span class="badge-expired">Hết hạn</span>' : '<span class="badge-active">Đang dùng</span>');
+            const actionBtn = isBlocked
+              ? `<button class="btn-unblock" onclick="unblockDevice('${d.deviceId}')">Mở lại</button>`
+              : `<button class="btn-revoke" onclick="revokeDevice('${d.deviceId}')">Thu hồi</button>`;
             return `
             <tr>
               <td style="font-family:monospace;font-size:0.75rem">${d.deviceId}</td>
               <td>${activated}</td>
               <td>${d.expiryDate}</td>
-              <td>${d.expired ? '<span class="badge-expired">Hết hạn</span>' : '<span class="badge-active">Đang dùng</span>'}</td>
+              <td>${statusBadge}</td>
+              <td>${actionBtn}</td>
             </tr>`;
           }).join('');
         } else {
           document.getElementById('deviceTable').innerHTML = '<tr><td colspan="4" style="color:#9aa0b9">Chưa có thiết bị nào</td></tr>';
         }
       } catch(e) {}
+    }
+
+    async function revokeDevice(deviceId) {
+      if (!confirm(`Thu hồi quyền của thiết bị:\n${deviceId}\n\nHọ sẽ không thể dùng app nữa!`)) return;
+      try {
+        const res = await fetch('/api/admin/revoke-device', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: savedPass, deviceId })
+        });
+        const data = await res.json();
+        alert(data.message || data.error);
+        loadData();
+      } catch(e) { alert('Lỗi kết nối!'); }
+    }
+
+    async function unblockDevice(deviceId) {
+      if (!confirm(`Mở lại quyền cho thiết bị:\n${deviceId}`)) return;
+      try {
+        const res = await fetch('/api/admin/unblock-device', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: savedPass, deviceId })
+        });
+        const data = await res.json();
+        alert(data.message || data.error);
+        loadData();
+      } catch(e) { alert('Lỗi kết nối!'); }
     }
   </script>
 </body>

@@ -392,6 +392,11 @@ app.use(async (req, res, next) => {
     '/api/machine-id',
     '/api/license-status',
     '/api/stats',
+    '/api/songs',
+    '/api/config',
+    '/api/sounds',
+    '/api/gift-cache',
+    '/api/debug-music',
     '/api/admin/stats',
     '/api/admin/generate-key',
     '/api/admin/revoke-device',
@@ -404,6 +409,9 @@ app.use(async (req, res, next) => {
     req.path.startsWith('/css/') ||
     req.path.startsWith('/js/') ||
     req.path.startsWith('/sounds/') ||
+    req.path.startsWith('/music/') ||
+    req.path.startsWith('/api/tiktok/') ||
+    req.path.startsWith('/api/songs/') ||
     req.path === '/api/sounds' ||
     req.path.endsWith('.ico') ||
     req.path.endsWith('.png') ||

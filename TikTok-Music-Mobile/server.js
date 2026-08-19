@@ -329,7 +329,7 @@ const defaultConfig = {
   giftMappings: {}
 };
 
-function loadConfig() {
+function loadConfigFromFile() {
   if (!fs.existsSync(CONFIG_FILE)) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaultConfig, null, 2), 'utf-8');
     return { ...defaultConfig };
@@ -342,13 +342,44 @@ function loadConfig() {
   }
 }
 
-function saveConfig(config) {
+function saveConfigToFile(config) {
   try {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
     return true;
   } catch (e) {
     return false;
   }
+}
+
+async function loadConfig() {
+  // MongoDB first
+  if (mongoDb) {
+    try {
+      const doc = await mongoDb.collection('app_config').findOne({ _id: 'main' });
+      if (doc) {
+        delete doc._id;
+        return { ...defaultConfig, ...doc };
+      }
+    } catch(e) {}
+  }
+  // Fallback to file
+  return loadConfigFromFile();
+}
+
+async function saveConfig(config) {
+  // Save to MongoDB
+  if (mongoDb) {
+    try {
+      await mongoDb.collection('app_config').updateOne(
+        { _id: 'main' },
+        { $set: config },
+        { upsert: true }
+      );
+    } catch(e) {}
+  }
+  // Also save to file as backup
+  saveConfigToFile(config);
+  return true;
 }
 
 // Multer config
@@ -790,12 +821,11 @@ app.post('/api/verify-license', async (req, res) => {
 });
 
 // Config (per room)
-app.get('/api/config', (req, res) => {
+app.get('/api/config', async (req, res) => {
   const roomId = req.query.room;
-  if (!roomId) return res.json(loadConfig());
+  if (!roomId) return res.json(await loadConfig());
   const room = getOrCreateRoom(roomId);
-  // Merge with saved config so playlist is preserved
-  const savedCfg = loadConfig();
+  const savedCfg = await loadConfig();
   const merged = { ...savedCfg, ...room.config };
   if (!room.config.playlist || room.config.playlist.length === 0) {
     merged.playlist = savedCfg.playlist || [];
@@ -803,12 +833,26 @@ app.get('/api/config', (req, res) => {
   res.json(merged);
 });
 
-app.post('/api/config', (req, res) => {
+app.post('/api/config', async (req, res) => {
   const roomId = req.query.room;
-  if (!roomId) return res.status(400).json({ error: 'Missing room' });
-  const room = getOrCreateRoom(roomId);
-  room.config = { ...room.config, ...req.body };
-  res.json({ success: true, config: room.config });
+  const newCfg = req.body || {};
+
+  const savedCfg = await loadConfig();
+  const merged = { ...savedCfg, ...newCfg };
+  if (newCfg.giftMappings) {
+    merged.giftMappings = { ...savedCfg.giftMappings, ...newCfg.giftMappings };
+  }
+  if (newCfg.giftIdMappings) {
+    merged.giftIdMappings = { ...savedCfg.giftIdMappings, ...newCfg.giftIdMappings };
+  }
+  await saveConfig(merged);
+
+  if (roomId) {
+    const room = getOrCreateRoom(roomId);
+    room.config = { ...room.config, ...newCfg };
+  }
+
+  res.json({ success: true, config: merged });
 });
 
 // Songs (shared across rooms)
@@ -836,32 +880,32 @@ app.get('/api/songs', (req, res) => {
   }
 });
 
-app.post('/api/songs/upload', upload.array('songs'), (req, res) => {
+app.post('/api/songs/upload', upload.array('songs'), async (req, res) => {
   try {
     const uploadedFiles = req.files.map(f => ({
       filename: f.filename,
       name: f.filename.replace(/^\d+_/, '').replace(/\.[^/.]+$/, ''),
       url: `/music/${encodeURIComponent(f.filename)}`
     }));
-    const config = loadConfig();
+    const config = await loadConfig();
     uploadedFiles.forEach(song => {
       if (!config.playlist.includes(song.filename)) config.playlist.push(song.filename);
     });
-    saveConfig(config);
+    await saveConfig(config);
     res.json({ success: true, files: uploadedFiles });
   } catch (e) {
     res.status(400).json({ error: e.message || 'Lỗi khi tải file lên' });
   }
 });
 
-app.delete('/api/songs/:filename', requireAdmin, (req, res) => {
+app.delete('/api/songs/:filename', requireAdmin, async (req, res) => {
   const filePath = path.join(MUSIC_DIR, req.params.filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Không tìm thấy file nhạc' });
   try {
     fs.unlinkSync(filePath);
-    const config = loadConfig();
+    const config = await loadConfig();
     config.playlist = config.playlist.filter(n => n !== req.params.filename);
-    saveConfig(config);
+    await saveConfig(config);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Lỗi khi xóa file nhạc' });

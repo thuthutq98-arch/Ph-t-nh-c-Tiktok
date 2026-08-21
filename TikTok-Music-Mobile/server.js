@@ -1157,7 +1157,8 @@ io.on('connection', (socket) => {
       if (prevRoom) {
         prevRoom.clients.delete(socket.id);
         if (prevRoom.clients.size === 0) {
-          prevRoom.cleanupTimer = setTimeout(() => cleanupRoom(socket.currentRoom), ROOM_TIMEOUT);
+          const roomToCleanup = prevRoom.id;
+          prevRoom.cleanupTimer = setTimeout(() => cleanupRoom(roomToCleanup), ROOM_TIMEOUT);
         }
       }
     }
@@ -1182,7 +1183,8 @@ io.on('connection', (socket) => {
         room.clients.delete(socket.id);
         console.log(`[Room] ${socket.id} left room: ${socket.currentRoom} (${room.clients.size} clients)`);
         if (room.clients.size === 0) {
-          room.cleanupTimer = setTimeout(() => cleanupRoom(socket.currentRoom), ROOM_TIMEOUT);
+          const roomToCleanup = socket.currentRoom;
+          room.cleanupTimer = setTimeout(() => cleanupRoom(roomToCleanup), ROOM_TIMEOUT);
         }
       }
     }

@@ -351,34 +351,36 @@ function saveConfigToFile(config) {
   }
 }
 
-async function loadConfig() {
+async function loadConfig(roomId) {
+  const configId = roomId ? `room_${roomId}` : 'main';
   // MongoDB first
   if (mongoDb) {
     try {
-      const doc = await mongoDb.collection('app_config').findOne({ _id: 'main' });
+      const doc = await mongoDb.collection('app_config').findOne({ _id: configId });
       if (doc) {
         delete doc._id;
         return { ...defaultConfig, ...doc };
       }
     } catch(e) {}
   }
-  // Fallback to file
+  // Fallback to file (chỉ cho config chung, không phân biệt room)
   return loadConfigFromFile();
 }
 
-async function saveConfig(config) {
+async function saveConfig(config, roomId) {
+  const configId = roomId ? `room_${roomId}` : 'main';
   // Save to MongoDB
   if (mongoDb) {
     try {
       await mongoDb.collection('app_config').updateOne(
-        { _id: 'main' },
+        { _id: configId },
         { $set: config },
         { upsert: true }
       );
     } catch(e) {}
   }
-  // Also save to file as backup
-  saveConfigToFile(config);
+  // Also save to file as backup (chỉ cho main)
+  if (!roomId) saveConfigToFile(config);
   return true;
 }
 
@@ -823,21 +825,33 @@ app.post('/api/verify-license', async (req, res) => {
 // Config (per room)
 app.get('/api/config', async (req, res) => {
   const roomId = req.query.room;
-  if (!roomId) return res.json(await loadConfig());
-  const room = getOrCreateRoom(roomId);
-  const savedCfg = await loadConfig();
-  const merged = { ...savedCfg, ...room.config };
-  if (!room.config.playlist || room.config.playlist.length === 0) {
-    merged.playlist = savedCfg.playlist || [];
+  
+  // Load main config (chứa playlist dùng chung toàn hệ thống)
+  const mainCfg = await loadConfig(null);
+
+  if (roomId) {
+    // Load config riêng của room từ MongoDB
+    const roomCfg = await loadConfig(roomId);
+    const room = getOrCreateRoom(roomId);
+    
+    // Merge: room config từ MongoDB đè lên main config, sau đó room config trong memory đè lên tiếp
+    const merged = { ...mainCfg, ...roomCfg, ...room.config };
+    
+    // Đảm bảo playlist luôn lấy từ main config (dùng chung)
+    merged.playlist = mainCfg.playlist || [];
+    
+    return res.json(merged);
   }
-  res.json(merged);
+
+  res.json(mainCfg);
 });
 
 app.post('/api/config', async (req, res) => {
   const roomId = req.query.room;
   const newCfg = req.body || {};
 
-  const savedCfg = await loadConfig();
+  // Load config riêng của room này (hoặc main nếu ko có room)
+  const savedCfg = await loadConfig(roomId || null);
   const merged = { ...savedCfg, ...newCfg };
   if (newCfg.giftMappings) {
     merged.giftMappings = { ...savedCfg.giftMappings, ...newCfg.giftMappings };
@@ -845,12 +859,25 @@ app.post('/api/config', async (req, res) => {
   if (newCfg.giftIdMappings) {
     merged.giftIdMappings = { ...savedCfg.giftIdMappings, ...newCfg.giftIdMappings };
   }
-  await saveConfig(merged);
+  
+  // Đảm bảo không lưu playlist trong config của room (vì room dùng chung playlist của main)
+  if (roomId) {
+    delete merged.playlist;
+  }
+
+  // Lưu riêng theo room (hoặc main)
+  await saveConfig(merged, roomId || null);
 
   if (roomId) {
     const room = getOrCreateRoom(roomId);
     room.config = { ...room.config, ...newCfg };
+    // Room memory cũng không nên giữ playlist cũ/stale, mà nên lấy từ main
+    delete room.config.playlist;
   }
+
+  // Khi trả về client, ta merge playlist của main vào để client không bị mất playlist
+  const mainCfg = await loadConfig(null);
+  merged.playlist = mainCfg.playlist || [];
 
   res.json({ success: true, config: merged });
 });

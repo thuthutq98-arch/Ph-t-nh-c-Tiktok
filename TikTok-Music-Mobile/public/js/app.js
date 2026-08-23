@@ -639,27 +639,36 @@ function loadFromLocal() {
 }
 
 async function loadConfig() {
-  // STEP 1: Load from localStorage FIRST (always available)
+  // STEP 1: Load settings cơ bản từ localStorage (volume, minCoins, v.v.)
   const localCfg = loadFromLocal();
   if (localCfg) {
-    systemConfig = { ...systemConfig, ...localCfg };
+    // Chỉ lấy settings không nhạy cảm từ local
+    if (localCfg.minGiftCoins !== undefined) systemConfig.minGiftCoins = localCfg.minGiftCoins;
+    if (localCfg.volume !== undefined) systemConfig.volume = localCfg.volume;
+    if (localCfg.chatTtsEnabled !== undefined) systemConfig.chatTtsEnabled = localCfg.chatTtsEnabled;
+    if (localCfg.ttsRate !== undefined) systemConfig.ttsRate = localCfg.ttsRate;
+    if (localCfg.ttsPitch !== undefined) systemConfig.ttsPitch = localCfg.ttsPitch;
   }
 
-  // STEP 2: Try server (may override if server has newer data)
+  // STEP 2: Luôn lấy giftMappings từ SERVER (nguồn chính, riêng theo phòng)
   try {
     const res = await fetch(roomUrl('/api/config'));
     const serverCfg = await res.json();
-    // Only use server data if it actually has content
-    if (serverCfg.giftMappings && Object.keys(serverCfg.giftMappings).length > 0) {
-      systemConfig.giftMappings = serverCfg.giftMappings;
-    }
+    // Server là nguồn duy nhất cho giftMappings — luôn dùng server
+    systemConfig.giftMappings = serverCfg.giftMappings || {};
+    systemConfig.giftIdMappings = serverCfg.giftIdMappings || {};
     if (serverCfg.playlist && serverCfg.playlist.length > 0) {
       systemConfig.playlist = serverCfg.playlist;
     }
     if (serverCfg.tiktokUsername) {
       systemConfig.tiktokUsername = serverCfg.tiktokUsername;
     }
-  } catch(e) {}
+  } catch(e) {
+    // Nếu server lỗi, dùng local làm fallback cho giftMappings
+    if (localCfg && localCfg.giftMappings) {
+      systemConfig.giftMappings = localCfg.giftMappings;
+    }
+  }
 
   // STEP 3: Apply to UI
   tiktokUsernameInput.value = systemConfig.tiktokUsername || '';
@@ -687,14 +696,8 @@ async function loadConfig() {
   systemConfig.giftMappings = systemConfig.giftMappings || {};
   renderMappingList();
 
-  // STEP 4: Sync local config to server
-  if (currentRoom) {
-    fetch(roomUrl('/api/config'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(systemConfig)
-    }).catch(() => {});
-  }
+  // STEP 4: server là nguồn đúng cho giftMappings — KHÔNG sync ngược local lên server
+  // (vì nếu sync ngược sẽ gây ra việc mapping của máy này ghi đè mapping của phòng trên server)
 
   // Save to local in case server had newer data
   saveToLocal();

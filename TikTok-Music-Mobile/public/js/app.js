@@ -91,11 +91,18 @@ if (!window.location.pathname.includes('activation.html') && !window.location.pa
 const urlParams = new URLSearchParams(window.location.search);
 let currentRoom = urlParams.get('room') || '';
 
+// Khi không có ?room= trong URL, dùng deviceId làm room mặc định.
+// Điều này đảm bảo mỗi máy có config riêng biệt, không bị lẫn lộn với máy khác.
+function getEffectiveRoom() {
+  return currentRoom || __deviceId || '';
+}
+
 // Helper: add room param to API URL
 function roomUrl(url) {
-  if (!currentRoom) return url;
+  const room = getEffectiveRoom();
+  if (!room) return url;
   const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}room=${encodeURIComponent(currentRoom)}`;
+  return `${url}${sep}room=${encodeURIComponent(room)}`;
 }
 
 // === Global State ===

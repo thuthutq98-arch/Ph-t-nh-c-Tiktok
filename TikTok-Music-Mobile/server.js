@@ -363,7 +363,13 @@ async function loadConfig(roomId) {
       }
     } catch(e) {}
   }
-  // Fallback to file (chỉ cho config chung, không phân biệt room)
+  // Fallback:
+  // - Nếu có roomId → trả về defaultConfig rỗng (KHÔNG đọc file chung config.json)
+  //   vì đọc file chung sẽ gây ra việc các phòng dùng chung mapping
+  // - Nếu không có roomId (main config) → đọc file config.json
+  if (roomId) {
+    return { ...defaultConfig };
+  }
   return loadConfigFromFile();
 }
 

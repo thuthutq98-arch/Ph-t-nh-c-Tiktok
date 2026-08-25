@@ -627,6 +627,7 @@ function saveToLocal() {
   try {
     localStorage.setItem('tiktok_my_config', JSON.stringify({
       giftMappings: systemConfig.giftMappings || {},
+      giftIdMappings: systemConfig.giftIdMappings || {},
       playlist: systemConfig.playlist || [],
       minGiftCoins: systemConfig.minGiftCoins,
       volume: systemConfig.volume,
@@ -646,24 +647,41 @@ function loadFromLocal() {
 }
 
 async function loadConfig() {
-  // STEP 1: Load settings cơ bản từ localStorage (volume, minCoins, v.v.)
+  // STEP 1: Load TẤT CẢ từ localStorage trước (bao gồm giftMappings)
   const localCfg = loadFromLocal();
   if (localCfg) {
-    // Chỉ lấy settings không nhạy cảm từ local
     if (localCfg.minGiftCoins !== undefined) systemConfig.minGiftCoins = localCfg.minGiftCoins;
     if (localCfg.volume !== undefined) systemConfig.volume = localCfg.volume;
     if (localCfg.chatTtsEnabled !== undefined) systemConfig.chatTtsEnabled = localCfg.chatTtsEnabled;
     if (localCfg.ttsRate !== undefined) systemConfig.ttsRate = localCfg.ttsRate;
     if (localCfg.ttsPitch !== undefined) systemConfig.ttsPitch = localCfg.ttsPitch;
+    // Khôi phục giftMappings từ local trước (sẽ bị override bởi server nếu server có data)
+    if (localCfg.giftMappings) systemConfig.giftMappings = localCfg.giftMappings;
+    if (localCfg.giftIdMappings) systemConfig.giftIdMappings = localCfg.giftIdMappings;
   }
 
-  // STEP 2: Luôn lấy giftMappings từ SERVER (nguồn chính, riêng theo phòng)
+  // STEP 2: Fetch từ server
   try {
     const res = await fetch(roomUrl('/api/config'));
     const serverCfg = await res.json();
-    // Server là nguồn duy nhất cho giftMappings — luôn dùng server
-    systemConfig.giftMappings = serverCfg.giftMappings || {};
-    systemConfig.giftIdMappings = serverCfg.giftIdMappings || {};
+
+    const serverHasMappings = serverCfg.giftMappings && Object.keys(serverCfg.giftMappings).length > 0;
+    const localHasMappings = systemConfig.giftMappings && Object.keys(systemConfig.giftMappings).length > 0;
+
+    if (serverHasMappings) {
+      // Server có data → dùng server (nguồn chính)
+      systemConfig.giftMappings = serverCfg.giftMappings;
+      systemConfig.giftIdMappings = serverCfg.giftIdMappings || {};
+    } else if (localHasMappings) {
+      // Server rỗng nhưng local có → giữ local và upload lên server để phục hồi
+      console.log('[Config] Server rỗng, phục hồi từ localStorage...');
+      fetch(roomUrl('/api/config'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ giftMappings: systemConfig.giftMappings, giftIdMappings: systemConfig.giftIdMappings || {} })
+      }).catch(() => {});
+    }
+
     if (serverCfg.playlist && serverCfg.playlist.length > 0) {
       systemConfig.playlist = serverCfg.playlist;
     }
@@ -671,10 +689,8 @@ async function loadConfig() {
       systemConfig.tiktokUsername = serverCfg.tiktokUsername;
     }
   } catch(e) {
-    // Nếu server lỗi, dùng local làm fallback cho giftMappings
-    if (localCfg && localCfg.giftMappings) {
-      systemConfig.giftMappings = localCfg.giftMappings;
-    }
+    // Server lỗi → giữ nguyên từ localStorage (đã load ở STEP 1)
+    console.warn('[Config] Không thể kết nối server, dùng localStorage');
   }
 
   // STEP 3: Apply to UI
@@ -701,12 +717,10 @@ async function loadConfig() {
   }
 
   systemConfig.giftMappings = systemConfig.giftMappings || {};
+  systemConfig.giftIdMappings = systemConfig.giftIdMappings || {};
   renderMappingList();
 
-  // STEP 4: server là nguồn đúng cho giftMappings — KHÔNG sync ngược local lên server
-  // (vì nếu sync ngược sẽ gây ra việc mapping của máy này ghi đè mapping của phòng trên server)
-
-  // Save to local in case server had newer data
+  // STEP 4: Lưu lại local (bao gồm data mới nhất từ server nếu có)
   saveToLocal();
 }
 

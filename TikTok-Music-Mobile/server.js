@@ -578,7 +578,7 @@ function getOrCreateRoom(roomId) {
       tiktokConnection: null,
       connectionStatus: 'disconnected',
       tiktokUsername: roomId,
-      config: { ...defaultConfig, tiktokUsername: roomId },
+      config: { tiktokUsername: roomId },
       clients: new Set(),
       lastActivity: Date.now(),
       cleanupTimer: null

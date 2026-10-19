@@ -859,11 +859,11 @@ app.post('/api/config', async (req, res) => {
   // Load config riêng của room này (hoặc main nếu ko có room)
   const savedCfg = await loadConfig(roomId || null);
   const merged = { ...savedCfg, ...newCfg };
-  if (newCfg.giftMappings) {
-    merged.giftMappings = { ...savedCfg.giftMappings, ...newCfg.giftMappings };
+  if (newCfg.giftMappings !== undefined) {
+    merged.giftMappings = newCfg.giftMappings;
   }
-  if (newCfg.giftIdMappings) {
-    merged.giftIdMappings = { ...savedCfg.giftIdMappings, ...newCfg.giftIdMappings };
+  if (newCfg.giftIdMappings !== undefined) {
+    merged.giftIdMappings = newCfg.giftIdMappings;
   }
   
   // Đảm bảo không lưu playlist trong config của room (vì room dùng chung playlist của main)
@@ -877,6 +877,8 @@ app.post('/api/config', async (req, res) => {
   if (roomId) {
     const room = getOrCreateRoom(roomId);
     room.config = { ...room.config, ...newCfg };
+    if (newCfg.giftMappings !== undefined) room.config.giftMappings = newCfg.giftMappings;
+    if (newCfg.giftIdMappings !== undefined) room.config.giftIdMappings = newCfg.giftIdMappings;
     // Room memory cũng không nên giữ playlist cũ/stale, mà nên lấy từ main
     delete room.config.playlist;
   }

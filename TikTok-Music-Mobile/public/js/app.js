@@ -632,6 +632,11 @@ function saveToLocal() {
       minGiftCoins: systemConfig.minGiftCoins,
       volume: systemConfig.volume,
       chatTtsEnabled: systemConfig.chatTtsEnabled,
+      giftTtsEnabled: systemConfig.giftTtsEnabled,
+      giftTtsLang: systemConfig.giftTtsLang,
+      chatTranslateEnabled: systemConfig.chatTranslateEnabled,
+      autoGreetEnabled: systemConfig.autoGreetEnabled,
+      greetTemplate: systemConfig.greetTemplate,
       ttsRate: systemConfig.ttsRate,
       ttsPitch: systemConfig.ttsPitch
     }));
@@ -653,6 +658,11 @@ async function loadConfig() {
     if (localCfg.minGiftCoins !== undefined) systemConfig.minGiftCoins = localCfg.minGiftCoins;
     if (localCfg.volume !== undefined) systemConfig.volume = localCfg.volume;
     if (localCfg.chatTtsEnabled !== undefined) systemConfig.chatTtsEnabled = localCfg.chatTtsEnabled;
+    if (localCfg.giftTtsEnabled !== undefined) systemConfig.giftTtsEnabled = localCfg.giftTtsEnabled;
+    if (localCfg.giftTtsLang !== undefined) systemConfig.giftTtsLang = localCfg.giftTtsLang;
+    if (localCfg.chatTranslateEnabled !== undefined) systemConfig.chatTranslateEnabled = localCfg.chatTranslateEnabled;
+    if (localCfg.autoGreetEnabled !== undefined) systemConfig.autoGreetEnabled = localCfg.autoGreetEnabled;
+    if (localCfg.greetTemplate !== undefined) systemConfig.greetTemplate = localCfg.greetTemplate;
     if (localCfg.ttsRate !== undefined) systemConfig.ttsRate = localCfg.ttsRate;
     if (localCfg.ttsPitch !== undefined) systemConfig.ttsPitch = localCfg.ttsPitch;
     // Khôi phục giftMappings từ local trước (sẽ bị override bởi server nếu server có data)
@@ -665,17 +675,19 @@ async function loadConfig() {
     const res = await fetch(roomUrl('/api/config'));
     const serverCfg = await res.json();
 
-    const serverHasMappings = serverCfg.giftMappings && Object.keys(serverCfg.giftMappings).length > 0;
-    const localHasMappings = systemConfig.giftMappings && Object.keys(systemConfig.giftMappings).length > 0;
+    const serverHasMappings = (serverCfg.giftMappings && Object.keys(serverCfg.giftMappings).length > 0) ||
+                              (serverCfg.giftIdMappings && Object.keys(serverCfg.giftIdMappings).length > 0);
+    const localHasMappings = (systemConfig.giftMappings && Object.keys(systemConfig.giftMappings).length > 0) ||
+                             (systemConfig.giftIdMappings && Object.keys(systemConfig.giftIdMappings).length > 0);
 
     if (serverHasMappings) {
-      // Server có data → dùng server (nguồn chính)
-      systemConfig.giftMappings = serverCfg.giftMappings;
-      systemConfig.giftIdMappings = serverCfg.giftIdMappings || {};
+      // Gộp cả server và local (ưu tiên cái vừa cài trên máy hiện tại để không bao giờ bị mất khi bấm Kết nối Live)
+      systemConfig.giftMappings = { ...(serverCfg.giftMappings || {}), ...(systemConfig.giftMappings || {}) };
+      systemConfig.giftIdMappings = { ...(serverCfg.giftIdMappings || {}), ...(systemConfig.giftIdMappings || {}) };
     } else if (localHasMappings) {
       // Server rỗng nhưng local có → giữ local và upload lên server để phục hồi
       console.log('[Config] Server rỗng, phục hồi từ localStorage...');
-      fetch(roomUrl('/api/config'), {
+      await fetch(roomUrl('/api/config'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ giftMappings: systemConfig.giftMappings, giftIdMappings: systemConfig.giftIdMappings || {} })
@@ -782,7 +794,14 @@ async function loadSongsList() {
 function initSocket() {
   socket = io();
 
-  // Join room if we have one
+  // Join room ngay và tự động join lại mỗi khi socket kết nối lại (rất quan trọng trên Render!)
+  socket.on('connect', () => {
+    const room = getEffectiveRoom();
+    if (room) {
+      socket.emit('join-room', room);
+    }
+  });
+
   if (currentRoom) {
     socket.emit('join-room', currentRoom);
   }
@@ -906,7 +925,11 @@ function initSocket() {
 // QUEUE / PLAYBACK
 // ========================================
 function queueNextSong(giftData) {
-  const giftNameClean = giftData.giftName.trim();
+  const giftNameClean = (giftData.giftName || '').trim();
+  if (!giftNameClean) {
+    addLog('system', 'warning', `Nhận quà nhưng thiếu tên quà (giftId: ${giftData.giftId || '?'})`);
+    return;
+  }
   let matchedFilename = null;
 
   // 1a. Khớp theo Gift ID trước (CHÍNH XÁC, không phụ thuộc ngôn ngữ)
@@ -929,12 +952,14 @@ function queueNextSong(giftData) {
   }
 
   // 2. No mapping for this gift?
-  const hasMappings = systemConfig.giftMappings && Object.keys(systemConfig.giftMappings).length > 0;
+  const hasNameMappings = systemConfig.giftMappings && Object.keys(systemConfig.giftMappings).length > 0;
+  const hasIdMappings = systemConfig.giftIdMappings && Object.keys(systemConfig.giftIdMappings).length > 0;
+  const hasMappings = hasNameMappings || hasIdMappings;
 
   if (!matchedFilename) {
     if (hasMappings) {
-      // Người dùng đã cài mapping → quà này chưa cài → bỏ qua, không phát nhạc
-      // (Không log để tránh spam khi nhận nhiều quà nhỏ)
+      // Người dùng đã cài mapping → quà này chưa cài → bỏ qua
+      addLog('system', 'info', `Bỏ qua quà "${giftNameClean}" (ID: ${giftData.giftId || '?'}) — chưa liên kết nhạc`);
       return;
     }
     // Chưa cài mapping nào → dùng playlist tuần tự (chế độ cũ)
@@ -954,11 +979,26 @@ function queueNextSong(giftData) {
     return;
   }
 
-  // 3. Đã có mapping → tìm bài trong thư viện
+  // 3. Đã có mapping → kiểm tra SYNTH_FALLBACK hoặc tìm bài trong thư viện
+  if (matchedFilename === 'SYNTH_FALLBACK') {
+    const synthSong = {
+      name: 'Nhạc Synthesizer',
+      filename: 'SYNTH_FALLBACK',
+      isSynth: true,
+      giftInfo: giftData,
+      queueId: Date.now() + '_' + Math.random().toString(36).substr(2, 5)
+    };
+    playbackQueue.push(synthSong);
+    renderQueueList();
+    queueCountBadge.textContent = playbackQueue.length;
+    addLog('system', 'success', `🎵 Quà "${giftNameClean}" → Nhạc Synthesizer (bởi @${giftData.uniqueId})`);
+    return;
+  }
+
   const song = library.find(s => s.filename === matchedFilename);
   if (!song) {
     // Bài đã xóa hoặc đổi tên → cảnh báo rõ ràng, KHÔNG phát bài khác
-    addLog('system', 'error', `⚠️ Quà "${giftNameClean}" → bài nhạc đã bị xóa! Vui lòng cài lại.`);
+    addLog('system', 'error', `⚠️ Quà "${giftNameClean}" → bài nhạc "${matchedFilename}" đã bị xóa! Vui lòng cài lại.`);
     return;
   }
 
@@ -2256,7 +2296,20 @@ window.removeFromQueue = (queueId) => {
 
 window.deleteMapping = async (giftName) => {
   if (systemConfig.giftMappings && systemConfig.giftMappings[giftName]) {
+    const songFilename = systemConfig.giftMappings[giftName];
     delete systemConfig.giftMappings[giftName];
+    // Xóa cả giftIdMappings liên quan (tránh orphaned entries gây phát nhạc sai)
+    if (systemConfig.giftIdMappings) {
+      Object.keys(systemConfig.giftIdMappings).forEach(idKey => {
+        if (systemConfig.giftIdMappings[idKey] === songFilename) {
+          // Kiểm tra xem còn giftMappings nào khác dùng cùng bài không
+          const stillUsed = Object.values(systemConfig.giftMappings).includes(songFilename);
+          if (!stillUsed) {
+            delete systemConfig.giftIdMappings[idKey];
+          }
+        }
+      });
+    }
     await saveConfig();
     renderMappingList();
     addLog('system', 'info', `Đã xóa liên kết quà "${giftName}"`);

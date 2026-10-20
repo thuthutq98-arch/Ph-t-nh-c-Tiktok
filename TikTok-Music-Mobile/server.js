@@ -1085,7 +1085,7 @@ app.post('/api/tiktok/connect', (req, res) => {
       const diamondCount = data.giftDetails ? data.giftDetails.diamondCount : (data.diamondCount || 0);
       const repeatCount = data.repeatCount || 1;
       const giftType = data.giftDetails ? data.giftDetails.giftType : (data.giftType || 1);
-      const isStreak = giftType === 1 || data.repeatEnd !== undefined;
+      const isStreak = giftType === 1;
       const isStreakEnd = data.repeatEnd === 1 || data.repeatEnd === true || data.repeatEnd === 'true';
       // Get gift image URL from TikTok API
       const giftPictureUrl = (data.giftDetails && data.giftDetails.giftPictureUrl) 

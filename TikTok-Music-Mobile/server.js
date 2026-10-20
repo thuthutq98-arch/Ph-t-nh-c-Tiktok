@@ -1030,8 +1030,12 @@ app.post('/api/tiktok/connect', (req, res) => {
   const roomId = username;
   const room = getOrCreateRoom(roomId);
 
-  if (room.tiktokConnection && room.connectionStatus === 'connected') {
+  if (room.tiktokConnection && (room.connectionStatus === 'connected' || room.connectionStatus === 'connecting')) {
     return res.json({ success: true, message: 'Đã kết nối sẵn', status: room.connectionStatus });
+  }
+  if (room.tiktokConnection) {
+    try { room.tiktokConnection.disconnect(); } catch(e) {}
+    room.tiktokConnection = null;
   }
 
   room.connectionStatus = 'connecting';
@@ -1071,7 +1075,8 @@ app.post('/api/tiktok/connect', (req, res) => {
         room.tiktokConnection = null;
       });
 
-    // GIFT event
+    // GIFT event (có chống trùng lặp streak/event từ TikTok)
+    if (!room.processedGifts) room.processedGifts = new Set();
     room.tiktokConnection.on(WebcastEvent.GIFT, data => {
       const uniqueId = data.user ? data.user.uniqueId : (data.uniqueId || 'user');
       const nickname = data.user ? data.user.nickname : (data.nickname || 'Người xem');
@@ -1080,13 +1085,20 @@ app.post('/api/tiktok/connect', (req, res) => {
       const diamondCount = data.giftDetails ? data.giftDetails.diamondCount : (data.diamondCount || 0);
       const repeatCount = data.repeatCount || 1;
       const giftType = data.giftDetails ? data.giftDetails.giftType : (data.giftType || 1);
-      const isStreak = giftType === 1;
+      const isStreak = giftType === 1 || data.repeatEnd !== undefined;
       const isStreakEnd = data.repeatEnd === 1 || data.repeatEnd === true || data.repeatEnd === 'true';
       // Get gift image URL from TikTok API
       const giftPictureUrl = (data.giftDetails && data.giftDetails.giftPictureUrl) 
         ? data.giftDetails.giftPictureUrl 
         : (data.giftPictureUrl || null);
       if (!isStreak || isStreakEnd) {
+        // Chống TikTok gửi trùng event kết thúc combo (hoặc gửi nhiều gói tin cho cùng 1 lần tặng)
+        const groupId = data.groupId || data.msgId || `${uniqueId}_${data.giftId}_${repeatCount}_${Math.floor(Date.now() / 3000)}`;
+        const dedupKey = `${uniqueId}_${data.giftId}_${groupId}_${repeatCount}`;
+        if (room.processedGifts.has(dedupKey)) return;
+        room.processedGifts.add(dedupKey);
+        setTimeout(() => room.processedGifts.delete(dedupKey), 10000);
+
         io.to(roomId).emit('gift', { giftName, repeatCount, diamondCount, nickname, uniqueId, giftId: data.giftId, profilePictureUrl, giftPictureUrl });
       }
     });

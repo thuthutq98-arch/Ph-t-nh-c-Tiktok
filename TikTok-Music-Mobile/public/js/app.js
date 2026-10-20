@@ -955,11 +955,7 @@ function queueNextSong(giftData) {
     const idKey = String(giftData.giftId);
     const candidateFile = systemConfig.giftIdMappings[idKey];
     if (candidateFile && Object.values(systemConfig.giftMappings).includes(candidateFile)) {
-      // Kiểm tra thêm: nếu knownGifts biết ID này thuộc về tên quà nào, tên quà đó phải nằm trong giftMappings
-      const known = knownGifts.find(g => String(g.id) === idKey);
-      if (!known || Object.keys(systemConfig.giftMappings).some(k => k.toLowerCase() === known.name.toLowerCase())) {
-        matchedFilename = candidateFile;
-      }
+      matchedFilename = candidateFile;
     }
   }
 

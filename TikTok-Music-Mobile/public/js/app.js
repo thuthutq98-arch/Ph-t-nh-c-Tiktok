@@ -863,7 +863,14 @@ function initSocket() {
     }
   });
 
+  const recentlyProcessedGifts = new Set();
   socket.on('gift', (data) => {
+    // Chống trùng lặp sự kiện quà tặng trên trình duyệt
+    const giftDedupKey = `${data.uniqueId || ''}_${data.giftId || data.giftName}_${data.repeatCount || 1}_${Math.floor(Date.now() / 2500)}`;
+    if (recentlyProcessedGifts.has(giftDedupKey)) return;
+    recentlyProcessedGifts.add(giftDedupKey);
+    setTimeout(() => recentlyProcessedGifts.delete(giftDedupKey), 5000);
+
     addLog('gift', 'success', data);
 
     // Auto-collect gift name + image + ID for dropdown
@@ -932,16 +939,8 @@ function queueNextSong(giftData) {
   }
   let matchedFilename = null;
 
-  // 1a. Khớp theo Gift ID trước (CHÍNH XÁC, không phụ thuộc ngôn ngữ)
-  if (giftData.giftId && systemConfig.giftIdMappings) {
-    const idKey = String(giftData.giftId);
-    if (systemConfig.giftIdMappings[idKey]) {
-      matchedFilename = systemConfig.giftIdMappings[idKey];
-    }
-  }
-
-  // 1b. Khớp theo tên (fallback cho mapping cũ chưa có ID)
-  if (!matchedFilename && systemConfig.giftMappings) {
+  // 1a. Khớp theo tên trên danh sách hiển thị trước
+  if (systemConfig.giftMappings) {
     if (systemConfig.giftMappings[giftNameClean]) {
       matchedFilename = systemConfig.giftMappings[giftNameClean];
     } else {
@@ -951,31 +950,24 @@ function queueNextSong(giftData) {
     }
   }
 
-  // 2. No mapping for this gift?
-  const hasNameMappings = systemConfig.giftMappings && Object.keys(systemConfig.giftMappings).length > 0;
-  const hasIdMappings = systemConfig.giftIdMappings && Object.keys(systemConfig.giftIdMappings).length > 0;
-  const hasMappings = hasNameMappings || hasIdMappings;
+  // 1b. Khớp theo Gift ID (CHỈ chấp nhận nếu bài hát đó đang thực sự có trong giftMappings hiện tại)
+  if (!matchedFilename && giftData.giftId && systemConfig.giftIdMappings && systemConfig.giftMappings) {
+    const idKey = String(giftData.giftId);
+    const candidateFile = systemConfig.giftIdMappings[idKey];
+    if (candidateFile && Object.values(systemConfig.giftMappings).includes(candidateFile)) {
+      // Kiểm tra thêm: nếu knownGifts biết ID này thuộc về tên quà nào, tên quà đó phải nằm trong giftMappings
+      const known = knownGifts.find(g => String(g.id) === idKey);
+      if (!known || Object.keys(systemConfig.giftMappings).some(k => k.toLowerCase() === known.name.toLowerCase())) {
+        matchedFilename = candidateFile;
+      }
+    }
+  }
 
+  // 2. No mapping for this gift?
   if (!matchedFilename) {
-    if (hasMappings) {
-      // Người dùng đã cài mapping → quà này chưa cài → bỏ qua
-      addLog('system', 'info', `Bỏ qua quà "${giftNameClean}" (ID: ${giftData.giftId || '?'}) — chưa liên kết nhạc`);
-      return;
-    }
-    // Chưa cài mapping nào → dùng playlist tuần tự (chế độ cũ)
-    if (activePlaylist.length > 0) {
-      if (nextPlaylistIndex >= activePlaylist.length) nextPlaylistIndex = 0;
-      const songToQueue = { ...activePlaylist[nextPlaylistIndex] };
-      nextPlaylistIndex++;
-      songToQueue.giftInfo = giftData;
-      songToQueue.queueId = Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-      playbackQueue.push(songToQueue);
-      renderQueueList();
-      queueCountBadge.textContent = playbackQueue.length;
-      addLog('system', 'success', `🎵 Thêm: ${songToQueue.name} (bởi @${giftData.uniqueId})`);
-    } else {
-      addLog('system', 'warning', `Nhận quà "${giftNameClean}" nhưng playlist trống!`);
-    }
+    // Chỉ phát nhạc cho những quà ĐÃ ĐƯỢC CÀI ĐẶT trong phần Liên kết quà tặng!
+    // Quà nào không cài đặt sẽ được bỏ qua hoàn toàn (tránh việc tặng quà rác hoặc chưa cài cũng tự phát nhạc).
+    addLog('system', 'info', `Bỏ qua quà "${giftNameClean}" — chưa cài đặt bài hát cho quà này`);
     return;
   }
 
@@ -2298,15 +2290,16 @@ window.deleteMapping = async (giftName) => {
   if (systemConfig.giftMappings && systemConfig.giftMappings[giftName]) {
     const songFilename = systemConfig.giftMappings[giftName];
     delete systemConfig.giftMappings[giftName];
-    // Xóa cả giftIdMappings liên quan (tránh orphaned entries gây phát nhạc sai)
+    // Xóa chính xác ID của quà vừa xóa + dọn sạch mọi giftIdMappings rác không còn trong giftMappings
     if (systemConfig.giftIdMappings) {
+      const known = knownGifts.find(g => g.name && g.name.toLowerCase() === giftName.toLowerCase());
+      if (known && known.id) {
+        delete systemConfig.giftIdMappings[String(known.id)];
+      }
+      const activeFiles = new Set(Object.values(systemConfig.giftMappings));
       Object.keys(systemConfig.giftIdMappings).forEach(idKey => {
-        if (systemConfig.giftIdMappings[idKey] === songFilename) {
-          // Kiểm tra xem còn giftMappings nào khác dùng cùng bài không
-          const stillUsed = Object.values(systemConfig.giftMappings).includes(songFilename);
-          if (!stillUsed) {
-            delete systemConfig.giftIdMappings[idKey];
-          }
+        if (!activeFiles.has(systemConfig.giftIdMappings[idKey])) {
+          delete systemConfig.giftIdMappings[idKey];
         }
       });
     }
